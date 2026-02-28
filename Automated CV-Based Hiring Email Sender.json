@@ -1,0 +1,123 @@
+{
+  "name": "Jadara Application Email Sender",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cv-job-email",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "4fe87a9f-f3ed-4261-be89-40efb6aa8f38",
+      "name": "Receive CV and Job Description",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        256,
+        304
+      ],
+      "webhookId": "529b08e4-eb4f-4d2c-ba4b-7cdc302be76f"
+    },
+    {
+      "parameters": {
+        "text": "={{ 'CV du candidat: ' + $json.body.cv + '\n\nDescription du poste: ' + $json.body.job_description + '\n\nNom du candidat: ' + $json.body.candidate_name + '\nPoste visé: ' + $json.body.job_title + '\nEntreprise: ' + $json.body.company_name + '\n\nGénère un email de candidature professionnel en français.' }}",
+        "options": {
+          "systemMessage": "You are a professional career advisor helping a student write a compelling job application email. Write the email FROM the student's perspective, addressed TO the hiring company. The email should be professional, concise (maximum 150 words), written in French, and highlight how the student's skills match the specific role. Sign off with the student's name."
+        }
+      },
+      "id": "c8680842-adbc-4137-95f3-b0a526f6a8bc",
+      "name": "Generate Personalized Email",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        480,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.body.company_email }}",
+        "subject": "={{ 'Candidature: ' + $json.body.job_title + ' — ' + $json.body.candidate_name }}",
+        "message": "={{ $('Generate Personalized Email').item.json.output }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "5428253b-39b1-4ca3-9e5d-353a5b1cf356",
+      "name": "Send Application Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        832,
+        304
+      ],
+      "webhookId": "ec0362da-8df1-4b4a-bd0f-f7547bf866c9"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "id": "5a276dcf-a8d9-4c10-afbb-88a7d76d8e8a",
+      "name": "Groq Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        560,
+        528
+      ],
+      "credentials": {
+        "groqApi": {
+          "id": "wQsy5iIflDO0Y2Wm",
+          "name": "Groq account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Generate Personalized Email": {
+      "main": [
+        [
+          {
+            "node": "Send Application Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Receive CV and Job Description": {
+      "main": [
+        [
+          {
+            "node": "Generate Personalized Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Personalized Email",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "availableInMCP": false
+  },
+  "versionId": "5aeaa9d0-ae79-4ce6-9304-809c8eb07936",
+  "meta": {
+    "instanceId": "646f0b60e9b757587b381095824808687b32b7cdba156972b6574ec1fb57eaed"
+  },
+  "id": "24dBbLWtWj56OuDR",
+  "tags": []
+}

@@ -1,0 +1,28 @@
+Yassine Chaari
+yassine.chaari@esprit.tn
+Tunis, Tunisia
+
+SUMMARY
+Motivated 4th-year Software Engineering student at INSAT. Strong foundation in web development, object-oriented programming, and database design. Looking for a Junior Backend Developer role.
+
+EDUCATION
+BSc Software Engineering
+INSAT, Tunis
+Expected Graduation: 2026
+
+EXPERIENCE
+No formal internship experience yet, but eager to learn and contribute to a professional team.
+
+PROJECTS
+Student Grade Calculator
+- Developed a web application using HTML, CSS, and basic JavaScript.
+- Hosted on GitHub Pages.
+- Helps students calculate their semester GPA.
+
+SKILLS
+Python, SQL, Git, HTML, CSS, JavaScript basics, Microsoft Office
+
+LANGUAGES
+Arabic (native)
+French (fluent)
+English (intermediate)

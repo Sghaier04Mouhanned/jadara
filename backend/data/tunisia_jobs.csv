@@ -1,0 +1,81 @@
+job_id,title,company,city,lat,lon,sector,required_skills,min_experience_years,salary_range_tnd
+J001,Software Engineer - Backend,Vermeg,Tunis,36.8065,10.1815,Software Engineering,Java;Spring Boot;Microservices;SQL;Git;REST APIs,2,2500-3500
+J002,Senior Java Developer,Vermeg,Tunis,36.8065,10.1815,Software Engineering,Java;Hibernate;Oracle DB;Maven;Agile;JUnit,4,3500-5000
+J003,Frontend Developer,Vermeg,Tunis,36.8065,10.1815,Software Engineering,React;TypeScript;HTML5;CSS3;Git;Webpack,2,2000-3000
+J004,DevOps Engineer,Vermeg,Tunis,36.8065,10.1815,Software Engineering,Docker;Kubernetes;Jenkins;AWS;Linux;Terraform,3,3000-4500
+J005,Data Engineer,Vermeg,Tunis,36.8065,10.1815,Data Science,Python;Apache Spark;Kafka;SQL;Airflow;AWS S3,3,3000-4500
+J006,Software Architect,Vermeg,Tunis,36.8065,10.1815,Software Engineering,Java;Microservices;System Design;Cloud Architecture;Docker;CI/CD,6,5000-7000
+J007,QA Engineer,Vermeg,Tunis,36.8065,10.1815,Software Engineering,Selenium;JUnit;TestNG;Agile;JIRA;API Testing,2,2000-3000
+J008,Network Engineer,Telnet,Tunis,36.8065,10.1815,Software Engineering,Cisco;CCNA;TCP/IP;VPN;Firewalls;Network Monitoring,2,2200-3200
+J009,Telecom Engineer,Telnet,Tunis,36.8065,10.1815,Software Engineering,4G/5G;RF Planning;Network Optimization;Python;MATLAB,3,2800-4000
+J010,Cybersecurity Analyst,Telnet,Tunis,36.8065,10.1815,Software Engineering,SIEM;Penetration Testing;Firewalls;OWASP;Python;Incident Response,3,3000-4500
+J011,Cloud Solutions Engineer,Telnet,Sfax,34.7406,10.7603,Software Engineering,AWS;Azure;Docker;Kubernetes;Python;Terraform,3,2800-4200
+J012,Embedded Systems Engineer,Telnet,Sousse,35.8245,10.6346,Software Engineering,C;C++;RTOS;STM32;Linux Embedded;CAN Bus,2,2500-3500
+J013,Mobile Developer - Android,Telnet,Tunis,36.8065,10.1815,Software Engineering,Kotlin;Java;Android SDK;REST APIs;Firebase;Git,2,2200-3200
+J014,Data Scientist,Talan,Tunis,36.8065,10.1815,Data Science,Python;Scikit-learn;TensorFlow;SQL;Pandas;Data Visualization,2,2800-4000
+J015,Machine Learning Engineer,Talan,Tunis,36.8065,10.1815,Data Science,Python;PyTorch;MLflow;Docker;Feature Engineering;NLP,3,3200-4800
+J016,Business Intelligence Analyst,Talan,Tunis,36.8065,10.1815,Data Science,Power BI;SQL;Excel;DAX;ETL;Data Modeling,2,2200-3200
+J017,Full Stack Developer,Talan,Sousse,35.8245,10.6346,Software Engineering,React;Node.js;PostgreSQL;Docker;Git;TypeScript,2,2200-3200
+J018,AI Engineer,Talan,Tunis,36.8065,10.1815,Data Science,Python;LangChain;LLMs;FastAPI;Vector Databases;RAG,2,3000-4500
+J019,Data Analyst,Talan,Sfax,34.7406,10.7603,Data Science,Python;SQL;Tableau;Excel;Statistics;Power BI,1,1800-2800
+J020,Scrum Master,Talan,Tunis,36.8065,10.1815,Software Engineering,Agile;Scrum;JIRA;Confluence;Stakeholder Management;Coaching,3,3000-4000
+J021,Telecom Project Manager,Sofrecom,Tunis,36.8065,10.1815,Software Engineering,Project Management;4G/5G;PMP;MS Project;Risk Management;Telecom Protocols,5,4000-6000
+J022,Network Optimization Engineer,Sofrecom,Tunis,36.8065,10.1815,Software Engineering,RF Optimization;Drive Test;TEMS;MapInfo;4G/5G;Python,2,2500-3800
+J023,GIS Specialist,Sofrecom,Tunis,36.8065,10.1815,Geomatics,ArcGIS;QGIS;Python;Network Topology;PostgreSQL;PostGIS,2,2500-3500
+J024,OSS/BSS Engineer,Sofrecom,Tunis,36.8065,10.1815,Software Engineering,OSS;BSS;SQL;Network Management;Python;Telecom APIs,3,3000-4200
+J025,Geomatics Engineer,Sofrecom,Sfax,34.7406,10.7603,Geomatics,QGIS;ArcGIS;Remote Sensing;PostGIS;Python;GPS Survey,2,2300-3300
+J026,Lecturer - Computer Science,Esprit School,Tunis,36.8065,10.1815,Software Engineering,Java;Algorithms;Data Structures;Teaching;Research;Python,3,2000-3000
+J027,AI Research Engineer,Esprit School,Tunis,36.8065,10.1815,Data Science,Python;Deep Learning;NLP;Computer Vision;PyTorch;Research Writing,3,2500-3500
+J028,Web Development Instructor,Esprit School,Tunis,36.8065,10.1815,Software Engineering,HTML5;CSS3;JavaScript;React;Node.js;Pedagogy,2,1800-2800
+J029,Data Science Instructor,Esprit School,Tunis,36.8065,10.1815,Data Science,Python;Machine Learning;Statistics;Jupyter;Teaching;SQL,3,2200-3200
+J030,Embedded Systems Instructor,Esprit School,Monastir,35.7643,10.8113,Software Engineering,C;C++;Arduino;STM32;Linux;Pedagogy,3,2000-3000
+J031,Digital Marketing Manager,Orange Tunisia,Tunis,36.8065,10.1815,Marketing,SEO;Google Ads;Social Media;Analytics;Content Strategy;CRM,3,2500-3800
+J032,Brand Manager,Orange Tunisia,Tunis,36.8065,10.1815,Marketing,Brand Strategy;Market Research;Campaign Management;Adobe Suite;KPIs;Storytelling,4,3000-4500
+J033,CRM Analyst,Orange Tunisia,Tunis,36.8065,10.1815,Marketing,Salesforce;SQL;CRM;Customer Segmentation;Excel;Data Analysis,2,2200-3200
+J034,Performance Marketing Analyst,Orange Tunisia,Tunis,36.8065,10.1815,Marketing,Google Analytics;Meta Ads;A/B Testing;Excel;SEO;SEM,2,2000-3000
+J035,Product Manager - Digital,Orange Tunisia,Tunis,36.8065,10.1815,Marketing,Product Roadmap;Agile;User Research;Analytics;Wireframing;Stakeholder Management,4,3500-5000
+J036,Content Strategy Specialist,Ooredoo,Tunis,36.8065,10.1815,Marketing,Content Marketing;SEO;Copywriting;Social Media;Analytics;Adobe Premiere,2,1800-2800
+J037,Customer Experience Analyst,Ooredoo,Tunis,36.8065,10.1815,Marketing,CRM;NPS;Data Analysis;Excel;Customer Journey Mapping;SQL,2,2000-3000
+J038,Digital Transformation Lead,Ooredoo,Tunis,36.8065,10.1815,Marketing,Digital Strategy;Change Management;Agile;Stakeholder Management;KPIs;Innovation,5,4500-6500
+J039,Market Research Analyst,Ooredoo,Sousse,35.8245,10.6346,Marketing,Market Research;SPSS;Excel;Survey Design;Reporting;Statistics,1,1800-2500
+J040,Social Media Manager,Ooredoo,Tunis,36.8065,10.1815,Marketing,Social Media Strategy;Content Creation;Analytics;Community Management;Canva;Copywriting,2,2000-3000
+J041,Risk Analyst,Banque Zitouna,Tunis,36.8065,10.1815,Finance,Risk Management;Basel III;Excel;SQL;Financial Modeling;VBA,2,2500-3500
+J042,Financial Analyst,Banque Zitouna,Tunis,36.8065,10.1815,Finance,Financial Modeling;Excel;Bloomberg;Accounting;IFRS;PowerPoint,2,2200-3200
+J043,Credit Analyst,Banque Zitouna,Sfax,34.7406,10.7603,Finance,Credit Scoring;Financial Statements;Excel;Risk Assessment;Banking Regulations;SQL,2,2200-3200
+J044,Compliance Officer,Banque Zitouna,Tunis,36.8065,10.1815,Finance,AML;KYC;Banking Regulations;Risk Management;Reporting;Audit,3,3000-4200
+J045,Islamic Finance Specialist,Banque Zitouna,Tunis,36.8065,10.1815,Finance,Islamic Finance;Sukuk;Financial Products;Sharia Compliance;Excel;Reporting,3,3000-4500
+J046,Treasury Analyst,Banque Zitouna,Tunis,36.8065,10.1815,Finance,Cash Flow Management;Excel;Financial Markets;Bloomberg;FX;Risk Management,2,2500-3500
+J047,Internal Auditor,Banque Zitouna,Monastir,35.7643,10.8113,Finance,Auditing;IFRS;Risk Assessment;Excel;Reporting;Banking Regulations,3,2800-4000
+J048,Electrical Engineer,STEG,Tunis,36.8065,10.1815,Civil Engineering,Power Systems;AutoCAD;Electrical Design;MATLAB;Project Management;HV/MV Networks,2,2200-3200
+J049,Civil Engineer - Infrastructure,STEG,Tunis,36.8065,10.1815,Civil Engineering,AutoCAD;Civil 3D;Project Management;Structural Analysis;Revit;Site Supervision,2,2200-3200
+J050,Renewable Energy Engineer,STEG,Tunis,36.8065,10.1815,Civil Engineering,Solar PV;Wind Energy;Energy Auditing;HOMER;Python;AutoCAD,3,2800-4000
+J051,Power Grid Analyst,STEG,Sfax,34.7406,10.7603,Civil Engineering,Power Systems;SCADA;Load Flow Analysis;PSS/E;Electrical Engineering;GIS,3,2800-4000
+J052,GIS Analyst - Energy Networks,STEG,Tunis,36.8065,10.1815,Geomatics,GIS;ArcGIS;PostGIS;Network Analysis;Electrical Networks;Python,2,2300-3300
+J053,Environmental Engineer,STEG,Bizerte,37.2744,9.8739,Civil Engineering,Environmental Impact Assessment;GIS;AutoCAD;Environmental Regulations;Reporting;Field Work,2,2200-3200
+J054,Hydraulics Engineer,STEG,Sousse,35.8245,10.6346,Civil Engineering,HEC-RAS;AutoCAD;Hydraulic Modeling;GIS;Water Resources;Field Survey,2,2200-3200
+J055,Agronomist - Crop Production,Poulina Group,Tunis,36.8065,10.1815,Agronomy,Agronomy;Crop Management;Soil Science;GIS;Irrigation;Reporting,2,2000-3000
+J056,Veterinary Officer,Poulina Group,Sfax,34.7406,10.7603,Agronomy,Veterinary Science;Animal Health;Biosecurity;Disease Control;Reporting;Farm Management,3,2500-3500
+J057,Food Quality Engineer,Poulina Group,Tunis,36.8065,10.1815,Agronomy,Food Safety;HACCP;ISO 22000;Quality Control;Laboratory Skills;Reporting,2,2200-3200
+J058,Supply Chain Analyst,Poulina Group,Tunis,36.8065,10.1815,Finance,Supply Chain Management;SAP;Excel;Logistics;Inventory Management;SQL,2,2200-3200
+J059,Precision Agriculture Specialist,Poulina Group,Monastir,35.7643,10.8113,Agronomy,Precision Agriculture;GIS;Remote Sensing;Drones;Soil Sensors;Python,2,2500-3500
+J060,Agricultural Data Analyst,Poulina Group,Tunis,36.8065,10.1815,Data Science,Python;R;GIS;Remote Sensing;Agricultural Modeling;Statistics,2,2300-3300
+J061,Remote Sensing Analyst,Sofrecom,Tunis,36.8065,10.1815,Geomatics,Remote Sensing;ENVI;SNAP;Google Earth Engine;Python;Satellite Imagery,2,2500-3500
+J062,Cartographer,STEG,Tunis,36.8065,10.1815,Geomatics,Cartography;QGIS;ArcGIS;Map Design;PostGIS;Data Collection,2,2000-3000
+J063,Spatial Data Engineer,Talan,Tunis,36.8065,10.1815,Geomatics,PostGIS;Python;GeoServer;QGIS;REST APIs;SQL,3,2800-4000
+J064,UAV/Drone Operator & Analyst,Poulina Group,Sfax,34.7406,10.7603,Geomatics,Drone Operation;Photogrammetry;Pix4D;AgiSoft;GIS;Field Survey,1,2200-3200
+J065,Surveying Engineer,STEG,Bizerte,37.2744,9.8739,Geomatics,Total Station;GPS/GNSS;AutoCAD;Topographic Survey;Leica;Field Work,2,2200-3200
+J066,Web GIS Developer,Sofrecom,Tunis,36.8065,10.1815,Geomatics,Leaflet.js;OpenLayers;GeoServer;PostGIS;React;Python,3,2800-4000
+J067,Structural Engineer,STEG,Bizerte,37.2744,9.8739,Civil Engineering,SAP2000;ETABS;AutoCAD;Structural Analysis;Revit;Site Supervision,2,2300-3300
+J068,Urban Planner,Sofrecom,Tunis,36.8065,10.1815,Geomatics,Urban Planning;GIS;AutoCAD;Land Use Planning;Community Engagement;Reporting,3,2500-3500
+J069,NLP Engineer,Talan,Tunis,36.8065,10.1815,Data Science,Python;HuggingFace;Transformers;NLP;FastAPI;Docker,2,3000-4500
+J070,Computer Vision Engineer,Vermeg,Tunis,36.8065,10.1815,Data Science,Python;OpenCV;PyTorch;YOLO;Image Processing;Deep Learning,2,3000-4500
+J071,Soil Scientist,Poulina Group,Sousse,35.8245,10.6346,Agronomy,Soil Analysis;GIS;Laboratory Skills;Remote Sensing;Field Sampling;Reporting,2,2000-3000
+J072,Financial Controller,Poulina Group,Tunis,36.8065,10.1815,Finance,Financial Reporting;IFRS;Excel;SAP;Budgeting;Consolidation,4,3500-5000
+J073,IT Security Engineer,Orange Tunisia,Tunis,36.8065,10.1815,Software Engineering,Network Security;SIEM;ISO 27001;Firewall;Python;Incident Response,3,3000-4500
+J074,Backend Developer - Python,Talan,Tunis,36.8065,10.1815,Software Engineering,Python;FastAPI;Django;PostgreSQL;Docker;Redis,2,2500-3800
+J075,iOS Developer,Orange Tunisia,Tunis,36.8065,10.1815,Software Engineering,Swift;Xcode;iOS SDK;REST APIs;Git;Firebase,2,2500-3500
+J076,SAP Consultant - Finance,Poulina Group,Tunis,36.8065,10.1815,Finance,SAP FI/CO;Financial Accounting;ERP;SQL;IFRS;Business Analysis,4,4000-5500
+J077,Irrigation Engineer,Poulina Group,Monastir,35.7643,10.8113,Agronomy,Irrigation Systems;Hydraulics;AutoCAD;GIS;Water Management;Field Work,2,2200-3200
+J078,Geotechnical Engineer,STEG,Sfax,34.7406,10.7603,Civil Engineering,Soil Mechanics;Plaxis;AutoCAD;Geotechnical Investigation;Foundation Design;Reporting,3,2500-3500
+J079,Telecom Data Analyst,Ooredoo,Tunis,36.8065,10.1815,Data Science,Python;SQL;Tableau;Telecom KPIs;Statistics;Excel,2,2200-3200
+J080,Investment Analyst,Banque Zitouna,Tunis,36.8065,10.1815,Finance,Financial Modeling;Excel;Valuation;Bloomberg;Private Equity;Reporting,3,3000-4500
