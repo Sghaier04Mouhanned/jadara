@@ -1,4 +1,4 @@
-# JADARA — Complete Tech Stack & End-to-End Build Guide
+# Ekbes — Complete Tech Stack & End-to-End Build Guide
 ### For LLM-assisted development | Every step executable
 
 ---
@@ -18,7 +18,7 @@
 
 | Tool | Role | How |
 |------|------|-----|
-| **HeyGen** | Generate an AI avatar video presenting Jadara | Record a 30-second "product intro" narrated by a professional avatar — play at pitch start |
+| **HeyGen** | Generate an AI avatar video presenting Ekbes | Record a 30-second "product intro" narrated by a professional avatar — play at pitch start |
 | **Google Flow** (labs.google/fx/fr/tools/flow) | AI video generation from script | Create a cinematic product walkthrough video as backup demo |
 | **EzGIF** | Convert screen recording to GIF | Record your demo → convert to GIF → embed in slides so it runs without clicking |
 | **Freepik** | Stock illustrations and icons | Download Tunisian/student illustrations for slides — avoid generic shutterstock look |
@@ -107,7 +107,7 @@ rich
 ## PART 3 — PROJECT STRUCTURE
 
 ```
-JADARA/
+Ekbes/
 │
 ├── .env                          # GROQ_API_KEY=your_key_here
 ├── dashboard.py                  # Entry point → streamlit run dashboard.py
@@ -165,7 +165,7 @@ JADARA/
 
 **Step 0.1 — Verify environment**
 ```bash
-cd JADARA
+cd Ekbes
 pip install -r requirements.txt
 python scripts/verify_env.py
 ```
@@ -179,7 +179,7 @@ from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 load_dotenv()
 llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=os.getenv("GROQ_API_KEY"))
-print(llm.invoke("Say: Jadara is ready").content)
+print(llm.invoke("Say: Ekbes is ready").content)
 ```
 Must print a response. If not, check your .env file.
 
@@ -674,7 +674,7 @@ from src.agents.graph import app as agent_app
 from src.search.mapping import create_job_map
 
 st.set_page_config(
-    page_title="Jadara | جدارة",
+    page_title="Ekbes | جدارة",
     page_icon="🎯",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -790,7 +790,7 @@ for key, default in [
 
 # ── Sidebar ───────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## 🎯 Jadara")
+    st.markdown("## 🎯 Ekbes")
     st.markdown("<div style='color:#6B7A8D;font-size:0.85rem'>جدارة · Merit</div>",
                 unsafe_allow_html=True)
     st.divider()
@@ -822,7 +822,7 @@ with st.sidebar:
             st.rerun()
 
 # ── HEADER ────────────────────────────────────────────────────────
-st.markdown('<div class="main-title">Jadara</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-title">Ekbes</div>', unsafe_allow_html=True)
 st.markdown('<div class="arabic-subtitle">جدارة · Your AI Career Agent</div>',
             unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
@@ -1038,7 +1038,7 @@ else:
     <small>— r/Tunisia, 2024</small>
   </p>
   <p style="color:#4ECDC4;margin-top:16px;font-size:1rem">
-    Jadara tells you exactly why. And exactly what to do next.
+    Ekbes tells you exactly why. And exactly what to do next.
   </p>
 </div>""", unsafe_allow_html=True)
     
@@ -1112,7 +1112,7 @@ print("Gaps:", [g["skill"] for g in result["gap_report"].get("prioritized_gaps",
 
 **HeyGen** (heygen.com):
 - Create a 20-second intro video: professional avatar says the opening line
-- Script: *"38% of Tunisian graduates are unemployed. Not because they lack talent. Because nobody tells them what's wrong. Jadara does."*
+- Script: *"38% of Tunisian graduates are unemployed. Not because they lack talent. Because nobody tells them what's wrong. Ekbes does."*
 - Download as MP4 → embed in pitch slides as autoplay
 
 **Freepik** (freepik.com):
@@ -1163,5 +1163,5 @@ RUN ORDER TOMORROW:
 
 ---
 
-*Jadara — جدارة — Merit.*
+*Ekbes — جدارة — Merit.*
 *Built for the student who deserves a fair shot and is ready to prove it.*

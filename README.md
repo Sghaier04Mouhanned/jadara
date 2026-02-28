@@ -1,6 +1,6 @@
-# Jadara (◌ج◌د◌ا◌ر◌ة) — AI Career Agent 🚀
+# Ekbes — AI Career Agent 🚀
 
-**Jadara** is a powerful AI career companion designed to empower Tunisian students and job seekers. It bridges the gap between university education and market requirements by providing automated CV optimization, personalized job matching, and a gamified skill-building roadmap.
+**Ekbes** is a powerful AI career companion designed to empower Tunisian students and job seekers. It bridges the gap between university education and market requirements by providing automated CV optimization, personalized job matching, and a gamified skill-building roadmap.
 
 ## 🌟 Key Features
 

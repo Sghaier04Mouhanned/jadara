@@ -1,4 +1,4 @@
-# جدارة · Jadara
+# جدارة · Ekbes
 ## Product Requirements Document — v1.0
 ### Hackathon Edition | February 28 – March 1, 2026
 
@@ -6,7 +6,7 @@
 
 ## 0. The Name
 
-**Jadara** — جدارة — Arabic for *merit, worthiness, competence.*
+Ekbes · إكبس— Arabic for *merit, worthiness, competence.*
 
 The product's entire purpose is to prove that a student deserves the opportunity they're
 pursuing — and then make it undeniable. The name is the mission.
@@ -18,7 +18,7 @@ untaken as a product name globally.
 
 ## 1. The One-Sentence Definition
 
-**Jadara is the AI agent that takes your CV and a target job, tells you exactly where you
+**Ekbes is the AI agent that takes your CV and a target job, tells you exactly where you
 stand, builds the plan to close the gap, and executes it with you until you're ready to
 apply — automatically.**
 
@@ -48,10 +48,10 @@ The Reddit data is visceral:
 > "Doesn't nepotism dominate hiring in Tunisia?"
 
 **Answer**: *"Yes — and that's exactly why students without connections need a sharper
-competitive edge. Jadara gives them what nepotism gives connected students: insider
+competitive edge. Ekbes gives them what nepotism gives connected students: insider
 knowledge about what it actually takes to get hired."*
 
-### 2.3 The Five Gaps Jadara Closes
+### 2.3 The Five Gaps Ekbes Closes
 
 | # | Gap | Current Reality |
 |---|-----|-----------------|
@@ -67,7 +67,7 @@ knowledge about what it actually takes to get hired."*
 
 ### 3.1 Product Overview
 
-Jadara is a two-tier AI agent platform. The user inputs their CV and job preferences.
+Ekbes is a two-tier AI agent platform. The user inputs their CV and job preferences.
 The agent analyzes, matches, plans, tracks, and ultimately executes — from raw CV to
 application-ready candidate.
 
@@ -315,7 +315,7 @@ Checks (2 pts each):
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        JADARA AGENT                                  │
+│                        Ekbes AGENT                                  │
 │                                                                      │
 │  Node 1          Node 2          Node 3          Node 4             │
 │  INTAKE    ───▶  ATS SCORE ───▶  MARKET    ───▶  ROUTING            │
@@ -436,7 +436,7 @@ graph.add_conditional_edges(
 ### 5.5 Project Structure
 
 ```
-JADARA/
+Ekbes/
 ├── .env                          # API keys
 ├── dashboard.py                  # Streamlit entry point
 ├── requirements.txt
@@ -516,7 +516,7 @@ This is the single scene the jury must see:
    Ready to apply?"*
 4. Green [Apply Now] button appears
 
-This moment proves the entire product thesis: Jadara doesn't just advise,
+This moment proves the entire product thesis: Ekbes doesn't just advise,
 it evolves with you and executes when you're ready.
 
 ---
@@ -538,7 +538,7 @@ CV update moment.
 
 *"38% of Tunisian university graduates are unemployed. They keep applying.
 They keep getting silence. Not because they lack talent — because nobody
-tells them what's wrong. Jadara tells them."*
+tells them what's wrong. Ekbes tells them."*
 
 ### Minute 2 — The Live Demo
 *(Open the app. Paste the pre-loaded CV. Click Analyze.)*
@@ -551,7 +551,7 @@ and here's exactly what to fix."*
 
 Show the gap plan. Check off one task. Watch the score jump.
 
-*"The moment you grow, Jadara knows."*
+*"The moment you grow, Ekbes knows."*
 
 ### Minute 3 — Business Model + Partners
 *(Show one slide: the two tiers, TAM, partner integration)*
@@ -564,14 +564,14 @@ student as a career service. Phase 3: integration with JobInterview's
 AI avatars for full interview preparation — powered by SIROCCO's
 infrastructure, scaled through Secret's ecosystem.*
 
-*Jadara — جدارة — Merit. We don't find you a job.
+*Ekbes — جدارة — Merit. We don't find you a job.
 We make you the person who deserves one."*
 
 ---
 
 ## 8. Judging Criteria Alignment
 
-| Criterion | Jadara's Answer |
+| Criterion | Ekbes's Answer |
 |-----------|-----------------|
 | **Innovation** | ATS simulation + CV auto-update loop + agent self-critique on gap prioritization. No competitor combines these three. |
 | **Impact** | 40% youth unemployment. 306,000 students. Acute, documented pain with verbatim Reddit evidence. |
@@ -579,7 +579,7 @@ We make you the person who deserves one."*
 | **Pitch** | Reddit quotes open. Live demo with visible node streaming. CV update moment is the climax. Three partners integrated in closing. |
 | **Execution** | Working LangGraph pipeline. FAISS RAG. ATS scoring engine. Gamification. Email generator. All functional and demo-safe. |
 | **AI Architecture Workflow** | Conditional routing (4 paths), streaming state, RAG, LLM tool use, self-critique loop. Fully defensible technically. |
-| **Problem Fit** | "Navigate path from education to professional world, personalized actionable guidance toward employability." Jadara is this definition, verbatim. |
+| **Problem Fit** | "Navigate path from education to professional world, personalized actionable guidance toward employability." Ekbes is this definition, verbatim. |
 
 ---
 
@@ -619,7 +619,7 @@ We make you the person who deserves one."*
 |------|---|------------|
 | ATS score feels arbitrary | High | Show the 5-component breakdown — every point is traceable |
 | Groq timeout during demo | Med | Cache one full run result 1hr before pitch |
-| "This is just Jobscan" objection | Med | "Jobscan optimizes for a static job posting. Jadara builds a plan, updates your CV as you grow, and applies for you when you're ready. It's the gap between a score and an outcome." |
+| "This is just Jobscan" objection | Med | "Jobscan optimizes for a static job posting. Ekbes builds a plan, updates your CV as you grow, and applies for you when you're ready. It's the gap between a score and an outcome." |
 | Self-critique loop produces bad output | Med | Cap at 1 loop. If output degrades, use first pass. |
 | Teammate unfamiliar with stack | High | Assign: UI polish, slide design, pitch delivery. No agent code. |
 | Problem statement diverges from PRD | Low | ATS + gap analysis + task plan covers any employability framing. Architecture is universal. |
@@ -638,10 +638,10 @@ TAM: 286 institutions × avg 1,000 active job-seekers × 15 TND/month = ~4.3M TN
 
 **Phase 3 — Partner Integration (Month 6–12)**
 JobInterview / SIROCCO: interview preparation node connects to their avatar system.
-Student completes Jadara's 90-day plan → automatically enters JobInterview prep flow.
+Student completes Ekbes's 90-day plan → automatically enters JobInterview prep flow.
 Secret: cost-effective infrastructure for scaling.
 
 ---
 
-*Jadara — جدارة — Merit.*
+*Ekbes — جدارة — Merit.*
 *Built for the student who deserves a fair shot and is ready to prove it.*
