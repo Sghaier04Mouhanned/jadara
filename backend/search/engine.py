@@ -73,6 +73,7 @@ def expand_skills(skills: list) -> set:
             expanded.add(s.strip().lower())
         else:
             expanded.add(str(s).lower())
+    
     for skill in list(expanded):
         for implied in SKILL_IMPLIES.get(skill, []):
             expanded.add(implied)

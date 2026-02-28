@@ -42,8 +42,8 @@ def ats(state: AgentState) -> dict:
     result = compute_ats_score(state["cv_text"], target)
 
     prompt = f"""This CV scored {result['total']}/100 on ATS.
-Missing keywords: {result['breakdown'].get('keyword_match', {{}}).get('missing', [])[:5]}
-Missing sections: {result['breakdown'].get('sections', {{}}).get('missing', [])}
+Missing keywords: {result['breakdown'].get('keyword_match', {}).get('missing', [])[:5]}
+Missing sections: {result['breakdown'].get('sections', {}).get('missing', [])}
 Return ONLY a JSON array of exactly 3 correction strings, each under 12 words.
 No markdown."""
     try:
