@@ -17,29 +17,56 @@ def _get_llm():
 # ── NODE 1: INTAKE ─────────────────────────────────────────────────────────────
 def intake(state: AgentState) -> dict:
     prompt = f"""Extract a student profile from this CV.
-Return ONLY valid JSON (no markdown):
-{{"name":"","skills":[],"field":"","experience_years":0,"education":""}}
+Return ONLY valid JSON with keys:
+- name (string)
+- skills (list of strings)
+- field (string)
+- experience_summary (string, 1-sentence)
+- education (string)
+
 CV: {state['cv_text']}
-Extra context: {state.get('additional_context', '')}"""
+Additional context: {state.get('additional_context', '')}"""
+
     try:
-        raw = _get_llm().invoke(prompt).content.strip()
-        raw = raw.replace("```json", "").replace("```", "").strip()
+        response = _get_llm().invoke(prompt)
+        raw = response.content.strip().replace("```json", "").replace("```", "").strip()
         profile = json.loads(raw)
-    except Exception:
-        profile = {
-            "name": "Student",
-            "skills": [],
-            "field": "General",
-            "experience_years": 0,
-            "education": "University",
-        }
+    except:
+        profile = {"name": "Candidate", "skills": [], "field": "General", "experience_summary": "", "education": ""}
     return {"student_profile": profile}
+
+
+# ── NODE 1B: OPTIMIZE CV ──────────────────────────────────────────────────────
+def optimize_cv(state: AgentState) -> dict:
+    profile = state.get("student_profile", {})
+    prompt = f"""You are a professional Resume Writer and ATS Expert.
+Rewrite the following raw CV into a high-impact, professional, and ATS-optimized version.
+
+CV RAW TEXT:
+{state['cv_text']}
+
+PARSED PROFILE:
+{json.dumps(profile)}
+
+INSTRUCTIONS:
+1. Use strong action verbs (e.g., 'Engineered', 'Orchestrated', 'Developed').
+2. Quantify achievements where possible.
+3. Organize into: Professional Summary, Core Skills, Experience, Education.
+4. Ensure it is clean for parsing.
+5. NO markdown formatting like bold/italics. Just plain text with clear headings.
+
+Return ONLY the optimized CV text."""
+
+    response = _get_llm().invoke(prompt)
+    return {"cv_optimized": response.content.strip()}
 
 
 # ── NODE 2: ATS SCORING ───────────────────────────────────────────────────────
 def ats(state: AgentState) -> dict:
     target = state.get("job_preferences", {}).get("title", "")
-    result = compute_ats_score(state["cv_text"], target)
+    # Base scoring on optimized version if available
+    cv_to_score = state.get("cv_optimized") or state["cv_text"]
+    result = compute_ats_score(cv_to_score, target)
 
     prompt = f"""This CV scored {result['total']}/100 on ATS.
 Missing keywords: {result['breakdown'].get('keyword_match', {}).get('missing', [])[:5]}
@@ -59,7 +86,7 @@ No markdown."""
     return {
         "ats_result": result,
         "ats_corrections": corrections,
-        "cv_final": state["cv_text"],
+        "cv_final": cv_to_score, # Use the scored CV as final
     }
 
 
@@ -81,11 +108,61 @@ def market(state: AgentState) -> dict:
 
     expanded = expand_skills(skills)
     scored = []
-    for _, row in results.head(8).iterrows():
-        job = row.to_dict()
-        job["match_score"] = score_match(
+    reasoning_map = {}
+    
+    top_candidates = results.head(5).to_dict("records")
+    
+    # ── Nuanced Reasoning Loop ──
+    # Ask LLM to evaluate alignment with explicit title-similarity and semantic matching
+    job_list_json = json.dumps([
+        {'id': i, 'title': j['title'], 'required': j['required_skills'], 'sector': j.get('sector', '')}
+        for i, j in enumerate(top_candidates)
+    ])
+    response_format_hint = '{"0": {"resonance_score": N, "alignment_reason": "..."}, ...}'
+    reasoning_prompt = f"""You are a precise career alignment evaluator. Evaluate the TRUE alignment between this student and each job.
+
+STUDENT PROFILE:
+- Skills: {skills}
+- Field/Domain: {profile.get('field', 'General')}
+- Experience: {profile.get('experience_summary', 'N/A')}
+- Target Role: {target}
+
+JOB LIST:
+{job_list_json}
+
+CRITICAL SCORING RULES:
+- If the student's field/skills are semantically IDENTICAL to the job title (e.g., 'GIS Analysis' background applying to 'GIS Analyst', or 'Data Science' student applying to 'Data Scientist'), the score MUST be 85-100.
+- If skills overlap significantly (>70% of required skills matched), score 70-90.
+- If there is partial overlap with transferable skills, score 40-69.
+- If there is minimal relevance, score below 40.
+- Do NOT give a low score just because the exact keyword doesn't match. Use SEMANTIC understanding.
+- Consider: Does the student's domain experience directly prepare them for this role?
+
+For each job ID, return:
+1. resonance_score: (0-100) based on true technical AND domain alignment.
+2. alignment_reason: (1 concise sentence explaining the match quality)
+
+Return ONLY a valid JSON object in this format: {response_format_hint}"""
+
+    try:
+        reasoning_resp = _get_llm().invoke(reasoning_prompt)
+        reasoning_data = json.loads(reasoning_resp.content.strip().replace("```json", "").replace("```", "").strip())
+    except:
+        reasoning_data = {}
+
+    for i, row in enumerate(top_candidates):
+        job = row
+        jid = str(i)
+        
+        # Use LLM score if available, otherwise fallback to keyword math
+        llm_info = reasoning_data.get(jid) or {}
+        llm_score = llm_info.get("resonance_score")
+        
+        job["match_score"] = float(llm_score) if llm_score is not None else score_match(
             expanded, str(job.get("required_skills", ""))
         )
+        job["alignment_reasoning"] = llm_info.get("alignment_reason", "Keyword match based on profile skills.")
+        
         scored.append(job)
 
     scored.sort(key=lambda x: x["match_score"], reverse=True)
@@ -227,35 +304,36 @@ def task_plan(state: AgentState) -> dict:
 
 
 # ── BUILD GRAPH ───────────────────────────────────────────────────────────────
-def build_graph():
-    g = StateGraph(AgentState)
-    g.add_node("intake", intake)
-    g.add_node("ats", ats)
-    g.add_node("market", market)
-    g.add_node("routing", routing)
-    g.add_node("email", email)
-    g.add_node("gap_analysis", gap_analysis)
-    g.add_node("task_plan", task_plan)
-
-    g.set_entry_point("intake")
-    g.add_edge("intake", "ats")
-    g.add_edge("ats", "market")
-    g.add_edge("market", "routing")
-    g.add_conditional_edges(
-        "routing",
-        route_fn,
-        {"email": "email", "gap_analysis": "gap_analysis"},
-    )
-    g.add_edge("email", END)
-    g.add_edge("gap_analysis", "task_plan")
-    g.add_edge("task_plan", END)
-    return g.compile()
-
-
 _pipeline = None
 
 def get_pipeline():
     global _pipeline
-    if _pipeline is None:
-        _pipeline = build_graph()
+    if _pipeline is not None:
+        return _pipeline
+
+    workflow = StateGraph(AgentState)
+
+    workflow.add_node("intake", intake)
+    workflow.add_node("optimize_cv", optimize_cv)
+    workflow.add_node("ats", ats)
+    workflow.add_node("market", market)
+    workflow.add_node("routing", routing)
+    workflow.add_node("email", email)
+    workflow.add_node("gap_analysis", gap_analysis)
+    workflow.add_node("task_plan", task_plan)
+
+    workflow.set_entry_point("intake")
+    workflow.add_edge("intake", "optimize_cv")
+    workflow.add_edge("optimize_cv", "ats")
+    workflow.add_edge("ats", "market")
+    workflow.add_edge("market", "routing")
+    workflow.add_conditional_edges(
+        "routing",
+        route_fn,
+        {"email": "email", "gap_analysis": "gap_analysis"},
+    )
+    workflow.add_edge("gap_analysis", "task_plan")
+    workflow.add_edge("task_plan", END)
+    
+    _pipeline = workflow.compile()
     return _pipeline

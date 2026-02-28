@@ -9,8 +9,11 @@ class AgentState(TypedDict):
     ats_result: dict
     ats_corrections: list
     cv_final: str
+    cv_optimized: str               # NEW: Professional ATS-ready version
     job_matches: list
-    routing_decision: str         # "auto_apply"|"informed"|"gap"|"redirect"
+    match_reasoning: dict           # NEW: Nuanced alignment explanations
+    match_revisions: dict           # NEW: Tracking score improvements
+    routing_decision: str           # "auto_apply"|"informed"|"gap"|"redirect"
     gap_report: dict
     task_plan: list
     completed_tasks: list

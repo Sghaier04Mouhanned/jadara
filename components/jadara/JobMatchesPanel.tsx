@@ -20,6 +20,7 @@ export interface Job {
   salary_range_tnd: string
   match_score: number
   required_skills: string
+  alignment_reasoning?: string // NEW
 }
 
 const DEFAULT_JOBS: Job[] = [
@@ -186,6 +187,24 @@ export default function JobMatchesPanel({ jobs = DEFAULT_JOBS, onApply }: JobMat
                   </span>
                 ))}
               </div>
+
+              {/* Row 4: Reasoning (NEW) */}
+              {job.alignment_reasoning && (
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: COLORS.teal,
+                    fontStyle: "italic",
+                    backgroundColor: "rgba(78,205,196,0.03)",
+                    padding: "6px 12px",
+                    borderRadius: 8,
+                    borderLeft: `2px solid ${COLORS.teal}40`,
+                    marginTop: 4
+                  }}
+                >
+                  “{job.alignment_reasoning}”
+                </div>
+              )}
             </div>
 
             {/* Score badge + action */}

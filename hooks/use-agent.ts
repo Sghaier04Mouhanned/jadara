@@ -5,6 +5,7 @@ import { streamAnalysis, completeTask, generateEmail, sendEmail, AnalyzeParams }
 
 const NODE_ORDER = [
     "intake",
+    "optimize_cv",
     "ats",
     "market",
     "routing",
@@ -14,6 +15,7 @@ const NODE_ORDER = [
 ];
 const NODE_LABELS: Record<string, string> = {
     intake: "📋 Reading your profile",
+    optimize_cv: "✨ Optimizing your CV for ATS",
     ats: "🔍 Scoring your CV against ATS",
     market: "🌍 Searching Tunisian job market",
     routing: "⚡ Determining your strategy",
@@ -112,7 +114,18 @@ export function useAgent() {
                                 : job;
                         }
                     );
-                    return { ...prev, job_matches: updatedJobs };
+                    // Update cv_optimized with the backend-revised version
+                    const updatedCvOptimized = res.updated_cv || prev.cv_optimized;
+                    // Mark the task as completed in the task_plan
+                    const updatedTaskPlan = prev.task_plan.map((t) =>
+                        t.id === taskId ? { ...t, completed: true } : t
+                    );
+                    return {
+                        ...prev,
+                        job_matches: updatedJobs,
+                        cv_optimized: updatedCvOptimized,
+                        task_plan: updatedTaskPlan,
+                    };
                 });
             }
             return res;

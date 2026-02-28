@@ -62,6 +62,7 @@ export default function JadaraApp() {
   const [email, setEmail] = useState("")
   const [activeTab, setActiveTab] = useState(0)
   const [toast, setToast] = useState<{ msg: string; visible: boolean }>({ msg: "", visible: false })
+  const [sendingEmail, setSendingEmail] = useState(false)
 
   const showToast = (msg: string) => {
     setToast({ msg, visible: true })
@@ -82,18 +83,19 @@ export default function JadaraApp() {
   const handleApply = async (job: any) => {
     showToast("✉️ Generating application email...")
     await triggerEmail({
-      cv_text: result?.cv_final || cvText,
+      cv_text: result?.cv_optimized || result?.cv_final || cvText,
       job,
       student_name: result?.student_profile?.name || "Candidate",
     })
     setActiveTab(4) // specific to Email tab
   }
 
-  const handleTaskComplete = async (taskId: number, skillAdded?: string, xpValue: number = 75) => {
+  const handleTaskComplete = async (taskId: number, skillAdded?: string | null, xpValue: number = 75) => {
     const task = result?.task_plan?.find((t) => t.id === taskId)
     if (!task || !result) return
 
-    const res = await completeTaskAction(taskId, skillAdded || task.skill_added, xpValue, result.cv_final || cvText)
+    const cv = result.cv_optimized || result.cv_final || cvText
+    const res = await completeTaskAction(taskId, skillAdded ?? task.skill_added, xpValue, cv)
     if (!res) return
 
     if (res.apply_ready && res.apply_ready_jobs?.length > 0) {
@@ -114,16 +116,23 @@ export default function JadaraApp() {
       showToast("Please enter your email in the sidebar")
       return
     }
+    setSendingEmail(true)
     try {
-      await sendEmail({
-        cv_text: result.cv_final,
+      const res = await sendEmail({
+        cv_text: result.cv_optimized || result.cv_final,
         job,
         student_name: result.student_profile.name,
         student_email: email,
       })
-      showToast(`✉️ Application sent to ${job.company}!`)
+      if (res.success) {
+        showToast(`✉️ Application sent to ${job.company}!`)
+      } else {
+        showToast(`⚠️ n8n error: ${res.error || 'Unknown error'} — is n8n running?`)
+      }
     } catch {
       showToast("Failed to send email — is n8n running?")
+    } finally {
+      setSendingEmail(false)
     }
   }
 
@@ -730,6 +739,47 @@ export default function JadaraApp() {
                       formatting: { score: 0, feedback: "" },
                     }}
                   />
+
+                  {/* Side-by-Side CV View (NEW) */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <label style={{ fontSize: 11, color: COLORS.textMuted, textTransform: "uppercase" }}>Your Raw CV</label>
+                      <div
+                        style={{
+                          height: 300,
+                          overflowY: "auto",
+                          backgroundColor: COLORS.surface,
+                          border: `1px solid ${COLORS.border}`,
+                          borderRadius: 8,
+                          padding: 12,
+                          fontSize: 12,
+                          color: COLORS.textMuted,
+                          whiteSpace: "pre-wrap"
+                        }}
+                      >
+                        {cvText}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <label style={{ fontSize: 11, color: COLORS.teal, textTransform: "uppercase", fontWeight: 600 }}>Jadara Optimized Version (ATS-Ready)</label>
+                      <div
+                        style={{
+                          height: 300,
+                          overflowY: "auto",
+                          backgroundColor: "rgba(78,205,196,0.03)",
+                          border: `1px solid ${COLORS.teal}40`,
+                          borderRadius: 8,
+                          padding: 12,
+                          fontSize: 13,
+                          color: COLORS.textPrimary,
+                          whiteSpace: "pre-wrap",
+                          lineHeight: 1.6
+                        }}
+                      >
+                        {result.cv_optimized || "No optimization generated."}
+                      </div>
+                    </div>
+                  </div>
                   {result.ats_corrections?.length > 0 && (
                     <div
                       style={{
@@ -785,6 +835,7 @@ export default function JadaraApp() {
                     salary_range_tnd: j.salary_range_tnd || "—",
                     match_score: j.match_score,
                     required_skills: j.required_skills || "",
+                    alignment_reasoning: j.alignment_reasoning,
                   }))}
                   onApply={handleApply}
                 />
@@ -860,19 +911,21 @@ export default function JadaraApp() {
                     {result.job_matches?.[0] && (
                       <button
                         onClick={() => handleSendEmail(result.job_matches[0])}
+                        disabled={sendingEmail}
                         style={{
                           padding: "12px 24px",
-                          background: COLORS.teal,
+                          background: sendingEmail ? COLORS.border : COLORS.teal,
                           border: "none",
                           borderRadius: 8,
                           color: "#080B14",
-                          cursor: "pointer",
+                          cursor: sendingEmail ? "not-allowed" : "pointer",
                           fontFamily: "var(--font-syne, 'Syne', sans-serif)",
                           fontWeight: 800,
                           fontSize: 13,
+                          opacity: sendingEmail ? 0.6 : 1,
                         }}
                       >
-                        Send via n8n →
+                        {sendingEmail ? "Sending…" : "Send via n8n →"}
                       </button>
                     )}
                   </div>

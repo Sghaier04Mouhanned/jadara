@@ -30,7 +30,7 @@ export interface QuestChecklistProps {
   tasks?: QuestTask[]
   xp_total?: number
   deadline_days?: number
-  onTaskComplete?: (taskId: number) => void
+  onTaskComplete?: (taskId: number, skillAdded?: string | null, xpValue?: number) => void
 }
 
 const DEFAULT_TASKS: QuestTask[] = [
@@ -120,12 +120,21 @@ export default function QuestChecklist({
     const newXP = xp + task.xp
     setXp(newXP)
     setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, completed: true } : t)))
-    onTaskComplete?.(task.id, task.xp)
+    onTaskComplete?.(task.id, task.skill_added, task.xp)
 
     if (toastTimer.current) clearTimeout(toastTimer.current)
     setToast({ msg: `+${task.xp} XP! Task complete!`, visible: true })
     toastTimer.current = setTimeout(() => setToast((prev) => ({ ...prev, visible: false })), 2000)
   }
+
+  // Sync with prop changes (live agent data)
+  useEffect(() => {
+    setTasks(propTasks)
+  }, [propTasks])
+
+  useEffect(() => {
+    setXp(propXP)
+  }, [propXP])
 
   useEffect(() => {
     return () => {

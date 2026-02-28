@@ -34,14 +34,27 @@ async def trigger_application_email(
     }
 
     webhook_url = os.getenv(
-        "N8N_WEBHOOK_URL", "http://localhost:5678/webhook/cv-job-email"
-    )
+        "N8N_WEBHOOK_URL", "https://aminekacem.app.n8n.cloud/webhook/cv-job-email"
+    ).strip()
+
+    print(f"[n8n] Attempting to trigger: {webhook_url}")
+    print(f"[n8n] Payload structure: {list(payload.keys())}")
 
     try:
+        # Use verify=False to rule out local SSL/DNS issues on Windows
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(webhook_url, json=payload)
-        return {"success": response.status_code == 200, "status_code": response.status_code}
-    except httpx.TimeoutException:
-        return {"success": False, "error": "n8n timeout — is n8n running?"}
+        
+        print(f"[n8n] HTTP Response: {response.status_code}")
+        if response.status_code == 200:
+            return {"success": True, "status_code": 200}
+        else:
+            error_msg = f"n8n error {response.status_code}: {response.text[:200]}"
+            print(f"[n8n] Error: {error_msg}")
+            return {"success": False, "error": error_msg}
+    except httpx.ConnectError as e:
+        print(f"[n8n] Connection Error: {e}")
+        return {"success": False, "error": f"Connection failed: {str(e)}"}
     except Exception as e:
+        print(f"[n8n] Unexpected Exception: {type(e).__name__}: {e}")
         return {"success": False, "error": str(e)}

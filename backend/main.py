@@ -54,6 +54,7 @@ class EmailSendRequest(BaseModel):
 # ── NODE LABELS FOR SSE EVENTS ─────────────────────────────────────────────────
 NODE_LABELS = {
     "intake": "📋 Reading your profile",
+    "optimize_cv": "✨ Optimizing your CV for ATS",
     "ats": "🔍 Scoring your CV against ATS",
     "market": "🌍 Searching Tunisian job market",
     "routing": "⚡ Determining your strategy",
@@ -111,6 +112,7 @@ async def analyze(req: AnalyzeRequest):
                             "job_matches",
                             "routing_decision",
                             "ats_corrections",
+                            "cv_optimized",
                         )
                     },
                 }
@@ -141,19 +143,31 @@ async def analyze(req: AnalyzeRequest):
 async def complete_task(req: TaskCompleteRequest):
     llm = get_llm()
 
-    # Update CV with new skill
-    updated_cv = req.current_cv
+    # Professionally integrate new skill into Optimized CV
+    updated_cv_optimized = req.current_cv
     if req.skill_added:
-        if "skills" in updated_cv.lower():
-            updated_cv += f"\n[Recently completed: {req.skill_added}]"
-        else:
-            updated_cv += f"\nSKILLS: {req.skill_added}"
+        integration_prompt = f"""You are a professional Resume Editor. 
+Integrate the following NEW SKILL/ACHIEVEMENT into the existing CV text in a natural, high-impact way.
+Do NOT just add it at the bottom. Find the right section (Experience or Skills) and rewrite that part.
+
+NEW SKILL: {req.skill_added}
+
+CURRENT CV:
+{req.current_cv}
+
+Return ONLY the full updated CV text. No markdown formatting."""
+        try:
+            integration_resp = get_llm().invoke(integration_prompt)
+            updated_cv_optimized = integration_resp.content.strip()
+        except:
+            # Fallback if LLM fails
+            updated_cv_optimized = req.current_cv + f"\n[Skill added: {req.skill_added}]"
 
     # Extract updated skills
     try:
         prompt = f"""List ALL skills from this CV as a JSON array of strings.
 Return ONLY the JSON array, no markdown.
-CV: {updated_cv[:2000]}"""
+CV: {updated_cv_optimized[:2000]}"""
         raw = llm.invoke(prompt).content.strip()
         raw = raw.replace("```json", "").replace("```", "").strip()
         updated_skills = json.loads(raw)
@@ -183,7 +197,7 @@ CV: {updated_cv[:2000]}"""
     level_info = get_level(req.xp_value)
 
     return {
-        "updated_cv": updated_cv,
+        "updated_cv": updated_cv_optimized,
         "updated_skills": updated_skills,
         "new_scores": new_scores,
         "apply_ready": len(apply_ready_jobs) > 0,
@@ -193,15 +207,48 @@ CV: {updated_cv[:2000]}"""
     }
 
 
+class EmailGenerateRequest(BaseModel):
+    cv_text: str
+    job: dict
+    student_name: str
+
+
+@app.post("/api/email/generate")
+async def generate_email_endpoint(req: EmailGenerateRequest):
+    """Generate an application email without sending it."""
+    llm = get_llm()
+    prompt = f"""Écris un email de candidature professionnel en français.
+Candidat: {req.student_name}
+Poste: {req.job.get('title', '')} chez {req.job.get('company', '')} à {req.job.get('city', '')}
+Compétences requises: {req.job.get('required_skills', '')}
+
+Format: Objet sur la première ligne, puis 3 paragraphes courts (max 150 mots total).
+Ton: Professionnel, direct, confiant.
+
+CV du candidat:
+{req.cv_text[:2000]}"""
+    try:
+        response = llm.invoke(prompt)
+        return {"application_email": response.content}
+    except Exception as e:
+        return {"application_email": f"Error generating email: {str(e)}"}
+
+
 @app.post("/api/email/send")
 async def send_email(req: EmailSendRequest):
-    result = await trigger_application_email(
-        cv_text=req.cv_text,
-        job=req.job,
-        student_name=req.student_name,
-        student_email=req.student_email,
-    )
-    return result
+    print(f"[backend] Received /api/email/send for {req.student_email}")
+    try:
+        result = await trigger_application_email(
+            cv_text=req.cv_text,
+            job=req.job,
+            student_name=req.student_name,
+            student_email=req.student_email,
+        )
+        print(f"[backend] n8n trigger result: {result}")
+        return result
+    except Exception as e:
+        print(f"[backend] Error in send_email: {e}")
+        return {"success": False, "error": str(e)}
 
 
 @app.get("/api/health")
