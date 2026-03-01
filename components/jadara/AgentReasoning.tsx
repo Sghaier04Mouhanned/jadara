@@ -54,13 +54,13 @@ const NODE_LOGS: Record<string, string[]> = {
 }
 
 const DEFAULT_NODES = [
-  { id: "read-profile",  label: "Reading your profile",            status: "pending" as const },
-  { id: "ats-score",     label: "Scoring your CV against ATS",     status: "pending" as const },
-  { id: "market-search", label: "Searching Tunisian job market",   status: "pending" as const },
-  { id: "strategy",      label: "Determining your strategy",       status: "pending" as const },
-  { id: "skill-gaps",    label: "Analyzing skill gaps",            status: "pending" as const },
-  { id: "action-plan",   label: "Building your action plan",       status: "pending" as const },
-  { id: "email",         label: "Generating your email",           status: "pending" as const },
+  { id: "read-profile", label: "Reading your profile", status: "pending" as const },
+  { id: "ats-score", label: "Scoring your CV against ATS", status: "pending" as const },
+  { id: "market-search", label: "Searching Tunisian job market", status: "pending" as const },
+  { id: "strategy", label: "Determining your strategy", status: "pending" as const },
+  { id: "skill-gaps", label: "Analyzing skill gaps", status: "pending" as const },
+  { id: "action-plan", label: "Building your action plan", status: "pending" as const },
+  { id: "email", label: "Generating your email", status: "pending" as const },
 ]
 
 export interface ReasoningNode {
@@ -217,7 +217,7 @@ export default function AgentReasoning({ nodes: propNodes, progress: propProgres
             paddingLeft: 16,
           }}
         >
-          Jadara is analyzing your profile...
+          Fynd is analyzing your profile...
         </p>
       </div>
 

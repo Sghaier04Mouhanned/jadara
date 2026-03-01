@@ -1,1145 +1,578 @@
-"use client"
+import Link from "next/link";
+import Image from "next/image";
 
-import { useState, useRef } from "react"
-import { useAgent } from "@/hooks/use-agent"
-import { sendEmail, updateTrackerStatus, uploadPdf } from "@/lib/api"
-
-import ATSGauge from "@/components/jadara/ATSGauge"
-import AgentReasoning from "@/components/jadara/AgentReasoning"
-import JobMatchesPanel from "@/components/jadara/JobMatchesPanel"
-import SkillGapPanel from "@/components/jadara/SkillGapPanel"
-import QuestChecklist from "@/components/jadara/QuestChecklist"
-
-const COLORS = {
-  bg: "#080B14",
-  surface: "#0D1117",
-  border: "#1E2533",
-  teal: "#4ECDC4",
-  gold: "#FFE66D",
-  success: "#44CF6C",
-  warning: "#FFA500",
-  danger: "#F85149",
-  textPrimary: "#E8E8E8",
-  textMuted: "#6B7A8D",
-}
-
-const CITIES = ["Any", "Tunis", "Sfax", "Sousse", "Monastir", "Bizerte"]
-
-const DEMO_CV = `Yassine Chaari — yassine.chaari@esprit.tn
-4th year Software Engineering student, INSAT Tunis
-
-EDUCATION
-BSc Software Engineering, INSAT, expected 2026
-
-EXPERIENCE
-No formal internship experience yet.
-
-PROJECTS
-Student Grade Calculator — HTML, CSS, JavaScript app on GitHub Pages.
-
-SKILLS
-Python, SQL, Git, HTML, CSS, JavaScript basics, Microsoft Office
-
-LANGUAGES
-Arabic (native), French (fluent), English (intermediate)`
-
-const STATS = [
-  { number: "306,000", label: "Students in Tunisia", color: COLORS.teal },
-  { number: "~40%", label: "Youth Unemployment", color: COLORS.danger },
-  { number: "80", label: "Jobs Indexed", color: COLORS.success },
-]
-
-const TABS = ["🔍 ATS Report", "💼 Job Matches", "📊 Gap Analysis", "📅 Action Plan", "📋 Tracker"]
-
-export default function JadaraApp() {
-  const { view, result, nodes, progress, xpTotal, tracker, analyze, completeTaskAction, reset, triggerEmail, refreshTracker } = useAgent()
-
-  const [tier, setTier] = useState<"free" | "premium">("premium")
-  const [cvText, setCvText] = useState("")
-  const [jobTitle, setJobTitle] = useState("")
-  const [city, setCity] = useState("Tunis")
-  const [level, setLevel] = useState("Entry Level")
-  const [email, setEmail] = useState("")
-  const [activeTab, setActiveTab] = useState(0)
-  const [toast, setToast] = useState<{ msg: string; visible: boolean }>({ msg: "", visible: false })
-  const [sendingEmail, setSendingEmail] = useState(false)
-  const [uploadingPdf, setUploadingPdf] = useState(false)
-
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const showToast = (msg: string) => {
-    setToast({ msg, visible: true })
-    setTimeout(() => setToast((p) => ({ ...p, visible: false })), 3000)
-  }
-
-  const handleAnalyze = () => {
-    if (!cvText.trim()) return
-    analyze({
-      cv_text: cvText,
-      job_preferences: { title: jobTitle || "Junior Developer", city, level, deadline_days: 21 },
-      tier,
-      additional_context: "",
-      student_email: email,
-    })
-  }
-
-  const handleApply = async (job: any) => {
-    showToast("✉️ Generating application email...")
-    await triggerEmail({
-      cv_text: result?.cv_optimized || result?.cv_final || cvText,
-      job,
-      student_name: result?.student_profile?.name || "Candidate",
-    })
-    setActiveTab(4) // specific to Email tab
-  }
-
-  const handleTaskComplete = async (taskId: number, skillAdded?: string | null, xpValue: number = 75) => {
-    const task = result?.task_plan?.find((t) => t.id === taskId)
-    if (!task || !result) return
-
-    const cv = result.cv_optimized || result.cv_final || cvText
-    const res = await completeTaskAction(taskId, skillAdded ?? task.skill_added, xpValue, cv)
-    if (!res) return
-
-    if (res.apply_ready && res.apply_ready_jobs?.length > 0) {
-      const job = res.apply_ready_jobs[0]
-      showToast(`🎯 You're ready to apply! ${job.company}: ${job.match_score}%`)
-    } else {
-      const improved = res.new_scores?.find((s: any) => s.delta > 0)
-      if (improved) {
-        showToast(`+${xpValue} XP! ${improved.company}: ${improved.old_score}% → ${improved.new_score}% ⬆️`)
-      } else {
-        showToast(`+${xpValue} XP! Task complete!`)
-      }
-    }
-  }
-
-  const handleSendEmail = async (job: any) => {
-    if (!result?.student_profile || !email) {
-      showToast("Please enter your email in the sidebar")
-      return
-    }
-    setSendingEmail(true)
-    try {
-      const res = await sendEmail({
-        cv_text: result.cv_optimized || result.cv_final,
-        job,
-        student_name: result.student_profile.name,
-        student_email: email,
-      })
-      if (res.success) {
-        showToast(`✉️ Application sent to ${job.company}!`)
-      } else {
-        showToast(`⚠️ n8n error: ${res.error || 'Unknown error'} — is n8n running?`)
-      }
-      // Always refresh tracker (entry is logged regardless of n8n success)
-      await refreshTracker()
-      setActiveTab(tabs.indexOf("📋 Tracker") !== -1 ? tabs.indexOf("📋 Tracker") : 5)
-    } catch {
-      showToast("Failed to send email — is n8n running?")
-      await refreshTracker()
-    } finally {
-      setSendingEmail(false)
-    }
-  }
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    setUploadingPdf(true)
-    showToast("Extracting text from PDF...")
-    try {
-      const res = await uploadPdf(file)
-      if (res.error) {
-        showToast(`⚠️ PDF Error: ${res.error}`)
-      } else if (res.text) {
-        setCvText(res.text)
-        showToast("✅ PDF successfully extracted!")
-      }
-    } catch {
-      showToast("❌ Failed to process PDF")
-    } finally {
-      setUploadingPdf(false)
-      if (fileInputRef.current) fileInputRef.current.value = ""
-    }
-  }
-
-  const tabs = [...TABS]
-  if (result?.application_email && !tabs.includes("✉️ Email")) tabs.push("✉️ Email")
-
+export default function LandingPage() {
   return (
-    <div
-      style={{
-        display: "flex",
-        minHeight: "100vh",
-        backgroundColor: COLORS.bg,
-        color: COLORS.textPrimary,
-        fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
-        fontWeight: 300,
-      }}
-    >
-      {/* TOAST */}
-      {toast.visible && (
-        <div
-          style={{
-            position: "fixed",
-            top: 24,
-            right: 24,
-            zIndex: 999,
-            backgroundColor: COLORS.surface,
-            border: `1px solid ${COLORS.teal}`,
-            borderRadius: 10,
-            padding: "12px 20px",
-            fontSize: 13,
-            color: COLORS.teal,
-            fontWeight: 400,
-            boxShadow: `0 4px 20px rgba(0,0,0,0.5)`,
-            pointerEvents: "none",
-          }}
-        >
-          {toast.msg}
-        </div>
-      )}
-
-      {/* ─── SIDEBAR ─────────────────────────────────────────────────── */}
-      <aside
+    <div className="min-h-screen bg-[#070C14] text-[#E8EDF5] overflow-x-hidden relative">
+      {/* SECTION 1 — Navbar */}
+      <nav
         style={{
-          width: 320,
-          minWidth: 320,
-          backgroundColor: COLORS.surface,
-          borderRight: `1px solid ${COLORS.border}`,
-          display: "flex",
-          flexDirection: "column",
-          padding: "28px 20px",
-          gap: 16,
           position: "sticky",
           top: 0,
-          height: "100vh",
-          overflowY: "auto",
+          zIndex: 50,
+          background: "rgba(7,12,20,0.85)",
+          backdropFilter: "blur(16px)",
+          borderBottom: "1px solid #1C2A3A",
+          height: "64px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 48px",
         }}
       >
-        {/* Logo */}
-        <div style={{ marginBottom: 4 }}>
-          <h1
-            style={{
-              fontFamily: "var(--font-syne, 'Syne', sans-serif)",
-              fontWeight: 800,
-              fontSize: 36,
-              margin: 0,
-              lineHeight: 1,
-              background: `linear-gradient(135deg, ${COLORS.teal}, ${COLORS.success}, ${COLORS.gold})`,
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-              letterSpacing: "-1px",
-            }}
-          >
-            Jadara
-          </h1>
-          <p
-            style={{
-              fontFamily: "var(--font-syne, 'Syne', sans-serif)",
-              fontSize: 13,
-              color: COLORS.gold,
-              margin: "4px 0 0",
-              letterSpacing: "0.08em",
-              opacity: 0.85,
-            }}
-          >
-            جدارة · Your AI Career Agent
-          </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Logo SVG fallback in case image not ready, but we use image if available per instruction. We'll use the raw <img> tag since Image requires width/height. */}
+          <img src="/fynd-logo.png" alt="Fynd.tn" style={{ height: 36 }} />
         </div>
 
-        {/* Tier selector */}
-        <div style={{ display: "flex", gap: 8 }}>
-          {(["free", "premium"] as const).map((t) => {
-            const isSelected = tier === t
-            const isFree = t === "free"
-            const borderColor = isFree ? COLORS.teal : COLORS.gold
-            return (
-              <button
-                key={t}
-                onClick={() => setTier(t)}
-                style={{
-                  flex: 1,
-                  padding: "8px 0",
-                  borderRadius: 100,
-                  border: `1.5px solid ${isSelected ? borderColor : COLORS.border}`,
-                  backgroundColor: isSelected
-                    ? isFree
-                      ? "rgba(78,205,196,0.08)"
-                      : "rgba(255,230,109,0.07)"
-                    : "transparent",
-                  color: isSelected ? borderColor : COLORS.textMuted,
-                  fontFamily: "var(--font-syne, 'Syne', sans-serif)",
-                  fontWeight: 800,
-                  fontSize: 13,
-                  cursor: "pointer",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  transition: "all 0.2s ease",
-                  boxShadow: isSelected && !isFree ? `0 0 14px 0 rgba(255,230,109,0.22)` : "none",
-                }}
-              >
-                {isFree ? "Free" : "✦ Premium"}
-              </button>
-            )
-          })}
+        <div style={{ display: "flex", gap: "32px", fontSize: "0.95rem" }} className="text-[#5A7A9A]">
+          <a href="#features" className="hover:text-[#4ECDC4] transition-colors duration-200">Features</a>
+          <a href="#process" className="hover:text-[#4ECDC4] transition-colors duration-200">How It Works</a>
+          <a href="#pricing" className="hover:text-[#4ECDC4] transition-colors duration-200">Pricing</a>
         </div>
 
-        {/* CV Input */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <label
-              style={{ fontSize: 11, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}
-            >
-              Paste Your CV (or Upload)
-            </label>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <Link
+            href="/app"
+            style={{
+              color: "#4ECDC4",
+              background: "transparent",
+              border: "1px solid transparent",
+              padding: "8px 16px",
+              borderRadius: "8px",
+              transition: "border 0.2s",
+            }}
+            className="hover:border-[#4ECDC4] text-sm font-medium"
+          >
+            Sign In
+          </Link>
+          <Link
+            href="/app"
+            style={{
+              background: "#4ECDC4",
+              color: "#070C14",
+              fontFamily: "var(--font-syne), 'Syne', sans-serif",
+              fontWeight: 700,
+              padding: "10px 24px",
+              borderRadius: "99px",
+              transition: "box-shadow 0.2s",
+            }}
+            className="hover:shadow-[0_0_20px_rgba(78,205,196,0.25)] text-sm"
+          >
+            Get Started →
+          </Link>
+        </div>
+      </nav>
 
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadingPdf}
+      {/* SECTION 2 — Hero */}
+      <section
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          paddingTop: "80px",
+          position: "relative",
+          paddingLeft: "48px",
+          paddingRight: "48px",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 0,
+            background: `radial-gradient(ellipse at 30% 50%, rgba(78,205,196,0.07) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(30,58,95,0.3) 0%, transparent 50%)`,
+            pointerEvents: "none",
+          }}
+        />
+
+        <div className="max-w-[1400px] w-full mx-auto flex items-center justify-between relative z-10">
+          {/* Left Column (55%) */}
+          <div style={{ width: "55%", paddingRight: "40px" }}>
+            <div
               style={{
-                background: "none",
-                border: `1px solid ${COLORS.teal}`,
-                color: COLORS.teal,
-                borderRadius: 6,
-                padding: "4px 8px",
-                fontSize: 10,
-                cursor: uploadingPdf ? "not-allowed" : "pointer",
-                opacity: uploadingPdf ? 0.5 : 1,
-                display: "flex",
+                display: "inline-flex",
+                background: "rgba(78,205,196,0.08)",
+                border: "1px solid rgba(78,205,196,0.3)",
+                color: "#4ECDC4",
+                fontSize: "12px",
+                borderRadius: "99px",
+                padding: "6px 16px",
+                fontWeight: 500,
+                marginBottom: "24px",
                 alignItems: "center",
-                gap: 4
+                gap: "8px"
               }}
             >
-              📄 {uploadingPdf ? "EXTRACTING..." : "UPLOAD PDF"}
-            </button>
-            <input
-              type="file"
-              accept=".pdf"
-              ref={fileInputRef}
-              style={{ display: "none" }}
-              onChange={handleFileUpload}
-            />
-          </div>
-          <textarea
-            value={cvText}
-            onChange={(e) => setCvText(e.target.value)}
-            placeholder="Paste your CV or resume text here..."
-            style={{
-              height: 160,
-              resize: "none",
-              backgroundColor: COLORS.bg,
-              border: `1.5px solid ${COLORS.border}`,
-              borderRadius: 10,
-              color: COLORS.textPrimary,
-              fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
-              fontWeight: 300,
-              fontSize: 13,
-              padding: "12px 14px",
-              outline: "none",
-              lineHeight: 1.6,
-            }}
-          />
-        </div>
+              ↑ Built for Tunisian Students · Powered by AI
+            </div>
 
-        {/* Load Demo CV */}
-        <button
-          onClick={() => setCvText(DEMO_CV)}
-          style={{
-            background: "none",
-            border: `1px dashed ${COLORS.border}`,
-            borderRadius: 6,
-            color: COLORS.textMuted,
-            padding: "6px 12px",
-            cursor: "pointer",
-            fontSize: 12,
-          }}
-        >
-          Load demo CV (Yassine Chaari)
-        </button>
-
-        {/* Target Role + City */}
-        <div style={{ display: "flex", gap: 8 }}>
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-            <label
-              style={{ fontSize: 11, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}
-            >
-              Target Role
-            </label>
-            <input
-              type="text"
-              value={jobTitle}
-              onChange={(e) => setJobTitle(e.target.value)}
-              placeholder="e.g. Backend Dev"
+            <h1
               style={{
-                backgroundColor: COLORS.bg,
-                border: `1.5px solid ${COLORS.border}`,
-                borderRadius: 8,
-                color: COLORS.textPrimary,
-                fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
-                fontWeight: 300,
-                fontSize: 13,
-                padding: "9px 12px",
-                outline: "none",
-                width: "100%",
-              }}
-            />
-          </div>
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-            <label
-              style={{ fontSize: 11, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}
-            >
-              City
-            </label>
-            <select
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              style={{
-                backgroundColor: COLORS.bg,
-                border: `1.5px solid ${COLORS.border}`,
-                borderRadius: 8,
-                color: COLORS.textPrimary,
-                fontSize: 13,
-                padding: "9px 12px",
-                outline: "none",
-                cursor: "pointer",
-                width: "100%",
-                appearance: "none",
+                fontFamily: "var(--font-syne), 'Syne', sans-serif",
+                fontWeight: 800,
+                fontSize: "3.8rem",
+                lineHeight: 1.1,
+                letterSpacing: "-2px",
+                marginBottom: "24px",
               }}
             >
-              {CITIES.map((c) => (
-                <option key={c} value={c} style={{ backgroundColor: COLORS.surface }}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Email */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label
-            style={{ fontSize: 11, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}
-          >
-            Company Email (for applications)
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@email.com"
-            style={{
-              backgroundColor: COLORS.bg,
-              border: `1.5px solid ${COLORS.border}`,
-              borderRadius: 8,
-              color: COLORS.textPrimary,
-              fontSize: 13,
-              padding: "9px 12px",
-              outline: "none",
-              width: "100%",
-            }}
-          />
-        </div>
-
-        {/* Spacer */}
-        <div style={{ flex: 1 }} />
-
-        {/* Analyze CTA */}
-        <button
-          onClick={handleAnalyze}
-          disabled={!cvText.trim() || view === "analyzing"}
-          style={{
-            width: "100%",
-            padding: "14px 0",
-            borderRadius: 10,
-            border: "none",
-            backgroundColor: COLORS.teal,
-            color: "#080B14",
-            fontFamily: "var(--font-syne, 'Syne', sans-serif)",
-            fontWeight: 800,
-            fontSize: 15,
-            cursor: cvText.trim() ? "pointer" : "not-allowed",
-            opacity: cvText.trim() ? 1 : 0.5,
-            letterSpacing: "0.02em",
-            boxShadow: `0 0 12px 0 rgba(78,205,196,0.2)`,
-          }}
-        >
-          {view === "analyzing" ? "Analyzing…" : "Analyze My Profile →"}
-        </button>
-
-        {view === "results" && (
-          <button
-            onClick={reset}
-            style={{
-              padding: "8px",
-              borderRadius: 8,
-              background: "none",
-              border: `1px solid ${COLORS.border}`,
-              color: COLORS.textMuted,
-              cursor: "pointer",
-              fontSize: 12,
-            }}
-          >
-            ↩ Start Over
-          </button>
-        )}
-      </aside>
-
-      {/* ─── MAIN CONTENT ────────────────────────────────────────────── */}
-      <main style={{ flex: 1, padding: "40px 48px", overflowY: "auto", minHeight: "100vh" }}>
-        {/* HOME VIEW */}
-        {view === "home" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 40, maxWidth: 820 }}>
-            <div>
+              <div style={{ color: "#E8EDF5" }}>Find Your Path.</div>
               <div
                 style={{
+                  background: "linear-gradient(135deg, #4ECDC4 0%, #2E9E96 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  display: "inline-block",
+                }}
+              >
+                Close the Gap.
+              </div>
+            </h1>
+
+            <p
+              style={{
+                fontWeight: 300,
+                fontSize: "1.05rem",
+                color: "#A8B8CC",
+                maxWidth: "460px",
+                lineHeight: 1.75,
+                marginBottom: "28px"
+              }}
+            >
+              Fynd analyzes your CV, finds your exact skill gaps, builds your
+              personalized action plan, and applies automatically the moment
+              you&apos;re competitive.
+              <br /><br />
+              The feedback the Tunisian market refuses to give — finally available.
+            </p>
+
+            <div style={{ display: "flex", gap: "12px", marginBottom: "28px" }}>
+              <div style={{ background: "#0C1220", border: "1px solid #1C2A3A", color: "#A8B8CC", fontSize: "14px", padding: "8px 16px", borderRadius: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+                <span>📊</span> 306,000 students
+              </div>
+              <div style={{ background: "#0C1220", border: "1px solid #1C2A3A", color: "#A8B8CC", fontSize: "14px", padding: "8px 16px", borderRadius: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+                <span>⚡</span> ~40% youth unemployment
+              </div>
+            </div>
+
+            <div
+              style={{
+                borderLeft: "3px solid #4ECDC4",
+                paddingLeft: "16px",
+                fontStyle: "italic",
+                fontWeight: 300,
+                color: "#5A7A9A",
+                marginTop: "28px",
+                marginBottom: "36px"
+              }}
+            >
+              &quot;600 applications. 1 interview. Then ghosted.&quot;
+              <br />
+              — r/Tunisia, 2024
+            </div>
+
+            <div style={{ display: "flex", gap: "16px", marginTop: "36px", marginBottom: "24px" }}>
+              <Link href="/app"
+                style={{
+                  height: "52px",
+                  background: "#4ECDC4",
+                  fontFamily: "var(--font-syne), 'Syne', sans-serif",
+                  fontWeight: 700,
+                  color: "#070C14",
+                  borderRadius: "12px",
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: 8,
-                  backgroundColor: "rgba(78,205,196,0.08)",
-                  border: `1px solid rgba(78,205,196,0.2)`,
-                  borderRadius: 100,
-                  padding: "5px 14px",
-                  marginBottom: 20,
+                  justifyContent: "center",
+                  padding: "0 32px",
+                  boxShadow: "0 8px 32px rgba(78,205,196,0.3)",
+                  transition: "transform 0.2s"
                 }}
+                className="hover:-translate-y-[2px]"
               >
-                <span
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    backgroundColor: COLORS.teal,
-                    display: "inline-block",
-                  }}
-                />
-                <span style={{ fontSize: 12, color: COLORS.teal, letterSpacing: "0.08em", fontWeight: 400 }}>
-                  AI Career Intelligence
-                </span>
-              </div>
-              <h2
+                Get Started Free →
+              </Link>
+              <button
                 style={{
-                  fontFamily: "var(--font-syne, 'Syne', sans-serif)",
-                  fontWeight: 800,
-                  fontSize: 42,
-                  margin: 0,
-                  lineHeight: 1.15,
-                  color: COLORS.textPrimary,
-                  letterSpacing: "-0.5px",
+                  height: "52px",
+                  background: "transparent",
+                  border: "1px solid #2E9E96",
+                  color: "#A8B8CC",
+                  borderRadius: "12px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "0 32px",
+                  transition: "color 0.2s"
                 }}
+                className="hover:text-[#4ECDC4]"
               >
-                The Tunisian job market
-                <br />
-                <span style={{ color: COLORS.teal }}>is brutal.</span>
-                <span style={{ color: COLORS.textMuted }}> We&apos;re not.</span>
-              </h2>
+                ▶ Watch How It Works
+              </button>
             </div>
 
-            {/* Stats */}
-            <div style={{ display: "flex", gap: 16 }}>
-              {STATS.map((stat, i) => (
-                <div
-                  key={i}
-                  style={{
-                    flex: 1,
-                    backgroundColor: COLORS.surface,
-                    border: `1px solid ${COLORS.border}`,
-                    borderRadius: 14,
-                    padding: "22px 20px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 6,
-                    position: "relative",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: 2,
-                      backgroundColor: stat.color,
-                      opacity: 0.6,
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontFamily: "var(--font-syne, 'Syne', sans-serif)",
-                      fontWeight: 800,
-                      fontSize: 30,
-                      color: stat.color,
-                      lineHeight: 1,
-                    }}
-                  >
-                    {stat.number}
-                  </span>
-                  <span style={{ fontSize: 14, color: COLORS.textPrimary, fontWeight: 400, lineHeight: 1.4 }}>
-                    {stat.label}
-                  </span>
+            <div style={{ display: "flex", alignItems: "center", gap: "20px", fontSize: "12px", color: "#5A7A9A", marginTop: "24px" }}>
+              <span>✓ LangGraph Agent</span>
+              <span>·</span>
+              <span>✓ Tunisian Job Database</span>
+              <span>·</span>
+              <span>✓ Auto-Apply via Gmail</span>
+            </div>
+          </div>
+
+          {/* Right Column (45%) */}
+          <div style={{ width: "45%", position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <div style={{
+              background: "rgba(78,205,196,0.08)", color: "#4ECDC4", fontFamily: "var(--font-syne), 'Syne', sans-serif",
+              fontWeight: 600, fontSize: "13px", padding: "6px 14px", borderRadius: "20px", marginBottom: "16px"
+            }}>
+              ↓ This is what your CV looks like to ATS systems
+            </div>
+
+            <div style={{
+              width: "480px",
+              background: "#0C1220",
+              borderRadius: "16px",
+              border: "1px solid #1C2A3A",
+              boxShadow: "0 24px 80px rgba(0,0,0,0.4)",
+              padding: "24px",
+              position: "relative",
+              zIndex: 10
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                <span style={{ fontWeight: 500 }}>Profile Analysis</span>
+                <span style={{ color: "#A8B8CC", fontSize: "14px" }}>Entry Level</span>
+              </div>
+              <div style={{ color: "#5A7A9A", fontSize: "14px", marginBottom: "32px" }}>Backend dev · Tunis</div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "32px" }}>
+                <div style={{ width: "80px", height: "80px", borderRadius: "50%", border: "4px solid #FFA500", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                  <span style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 800, fontSize: "24px", color: "#FFA500" }}>52</span>
                 </div>
-              ))}
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: "18px", color: "#FFA500" }}>At Risk</div>
+                  <div style={{ color: "#5A7A9A", fontSize: "13px" }}>ATS Score · Out of 100</div>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontFamily: "monospace", fontSize: "14px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", color: "#E8EDF5" }}>
+                  <span>Keyword Match</span>
+                  <span style={{ color: "#FFA500" }}>████░░░░░░░░ <span style={{ color: "#5A7A9A", marginLeft: "12px" }}>13 pts</span></span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", color: "#E8EDF5" }}>
+                  <span>Placement</span>
+                  <span style={{ color: "#44CF6C" }}>██████░░░░░░ <span style={{ color: "#5A7A9A", marginLeft: "12px" }}> 6 pts</span></span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", color: "#E8EDF5" }}>
+                  <span>Sections</span>
+                  <span style={{ color: "#44CF6C" }}>██████░░░░░░ <span style={{ color: "#5A7A9A", marginLeft: "12px" }}> 6 pts</span></span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", color: "#E8EDF5" }}>
+                  <span>Experience</span>
+                  <span style={{ color: "#F85149" }}>█████░░░░░░░ <span style={{ color: "#5A7A9A", marginLeft: "12px" }}> 3 pts</span></span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", color: "#E8EDF5" }}>
+                  <span>Formatting</span>
+                  <span style={{ color: "#F85149" }}>█████░░░░░░░ <span style={{ color: "#5A7A9A", marginLeft: "12px" }}> 3 pts</span></span>
+                </div>
+              </div>
             </div>
 
-            {/* Quote */}
-            <div
-              style={{
-                backgroundColor: COLORS.surface,
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: 16,
-                padding: "32px 36px",
-                textAlign: "center",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 22,
-                  fontStyle: "italic",
-                  color: COLORS.textPrimary,
-                  lineHeight: 1.55,
-                  fontWeight: 300,
-                }}
-              >
-                {'"600 applications. 1 interview. Then ghosted."'}
-              </div>
-              <div style={{ fontSize: 13, color: COLORS.textMuted, margin: "8px 0 16px" }}>— r/Tunisia, 2024</div>
-              <div style={{ fontSize: 15, color: COLORS.teal, fontWeight: 400 }}>
-                Jadara tells you exactly why. And what to do next.
-              </div>
+            <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
+              <div style={{ border: "1px solid #44CF6C", color: "#A8B8CC", padding: "4px 12px", borderRadius: "99px", fontSize: "13px" }}>Vermeg <span style={{ color: "#44CF6C", fontWeight: 500 }}>91% ✓</span></div>
+              <div style={{ border: "1px solid #FFA500", color: "#A8B8CC", padding: "4px 12px", borderRadius: "99px", fontSize: "13px" }}>Talan <span style={{ color: "#FFA500", fontWeight: 500 }}>73%</span></div>
+              <div style={{ border: "1px solid #F85149", color: "#A8B8CC", padding: "4px 12px", borderRadius: "99px", fontSize: "13px" }}>Orange TN <span style={{ color: "#F85149", fontWeight: 500 }}>45%</span></div>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 10,
-                padding: "20px 0",
-                borderTop: `1px solid ${COLORS.border}`,
-              }}
-            >
-              <span style={{ fontSize: 20, opacity: 0.5 }}>←</span>
-              <span style={{ fontSize: 14, color: COLORS.textMuted, fontStyle: "italic" }}>
-                Paste your CV to begin
-              </span>
+            {/* Geometric arrow SVG decorative element */}
+            <svg style={{ position: "absolute", top: -40, right: -40, opacity: 0.06, transform: "rotate(15deg)", zIndex: 0, width: "300px", height: "300px" }} viewBox="0 0 32 32">
+              <polygon points="14,2 28,2 28,16 22,10 14,18 10,14 18,6" fill="#4ECDC4" />
+              <polygon points="14,2 28,2 22,8" fill="#2E9E96" />
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 3 — Stats Strip */}
+      <section style={{ backgroundColor: "#0C1220", borderTop: "1px solid #1C2A3A", borderBottom: "1px solid #1C2A3A", padding: "40px" }}>
+        <div className="max-w-[1200px] mx-auto flex justify-between items-center text-center">
+          <div style={{ flex: 1, borderRight: "1px solid #1C2A3A", padding: "0 20px" }}>
+            <div style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 800, fontSize: "2.8rem", color: "#4ECDC4" }}>306,000</div>
+            <div style={{ color: "#5A7A9A", fontSize: "0.85rem" }}>Students across<br />286 institutions</div>
+          </div>
+          <div style={{ flex: 1, borderRight: "1px solid #1C2A3A", padding: "0 20px" }}>
+            <div style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 800, fontSize: "2.8rem", color: "#4ECDC4" }}>~40%</div>
+            <div style={{ color: "#5A7A9A", fontSize: "0.85rem" }}>Youth<br />Unemployed</div>
+          </div>
+          <div style={{ flex: 1, borderRight: "1px solid #1C2A3A", padding: "0 20px" }}>
+            <div style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 800, fontSize: "2.8rem", color: "#4ECDC4" }}>80+</div>
+            <div style={{ color: "#5A7A9A", fontSize: "0.85rem" }}>Tunisian<br />Companies</div>
+          </div>
+          <div style={{ flex: 1, padding: "0 20px" }}>
+            <div style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 800, fontSize: "2.8rem", color: "#4ECDC4" }}>Fynd.tn</div>
+            <div style={{ color: "#5A7A9A", fontSize: "0.85rem" }}>Your Guided<br />Path.</div>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 4 — Bento Feature Grid */}
+      <section id="features" style={{ padding: "120px 48px" }} className="max-w-[1200px] mx-auto">
+        <div style={{ textAlign: "center", marginBottom: "60px" }}>
+          <div style={{ color: "#4ECDC4", fontSize: "14px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", marginBottom: "16px" }}>Everything You Need</div>
+          <h2 style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 800, fontSize: "2.8rem", color: "#E8EDF5", lineHeight: 1.2 }}>
+            Your Entire Career Journey<br />In One Intelligent Agent.
+          </h2>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gridTemplateRows: "auto auto", gap: "16px" }}>
+          {/* Cell 1 (row-span-2) */}
+          <div className="hover:border-[#2E9E96] hover:shadow-[0_0_24px_rgba(78,205,196,0.08)] transition-all duration-200" style={{ background: "#0C1220", border: "1px solid #1C2A3A", padding: "28px", borderRadius: "14px", gridRow: "span 2", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ width: "48px", height: "48px", background: "rgba(78,205,196,0.1)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", marginBottom: "20px" }}>🔍</div>
+              <h3 style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 700, fontSize: "1.2rem", marginBottom: "12px", color: "#E8EDF5" }}>CV Scored Like a Machine</h3>
+              <p style={{ color: "#A8B8CC", fontSize: "15px", lineHeight: 1.6 }}>Fynd simulates how ATS systems actually read your profile. 5-component breakdown: keywords, placement, sections, experience validation, formatting. Score 0–100.</p>
+            </div>
+            <div style={{ marginTop: "40px", padding: "16px", background: "#070C14", border: "1px solid #1C2A3A", borderRadius: "10px", textAlign: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px" }}>
+                <div style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 800, fontSize: "2rem", color: "#FFE66D" }}>67<span style={{ fontSize: "1rem", color: "#5A7A9A" }}>/100</span></div>
+                <div style={{ background: "rgba(255,230,109,0.1)", color: "#FFE66D", padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: 600 }}>Optimizable</div>
+              </div>
             </div>
           </div>
-        )}
 
-        {/* ANALYZING VIEW */}
-        {view === "analyzing" && (
-          <div style={{ maxWidth: 620 }}>
-            <h2
-              style={{
-                fontFamily: "var(--font-syne, 'Syne', sans-serif)",
-                fontWeight: 800,
-                fontSize: 30,
-                margin: "0 0 24px",
-                color: COLORS.textPrimary,
-              }}
-            >
-              Profile Analysis
+          {/* Cell 2 */}
+          <div className="hover:border-[#2E9E96] hover:shadow-[0_0_24px_rgba(78,205,196,0.08)] transition-all duration-200" style={{ background: "#0C1220", border: "1px solid #1C2A3A", padding: "28px", borderRadius: "14px" }}>
+            <div style={{ fontSize: "24px", marginBottom: "16px" }}>🎯</div>
+            <h3 style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 700, fontSize: "1.1rem", marginBottom: "12px", color: "#E8EDF5" }}>Matched to Real Tunisian Jobs</h3>
+            <p style={{ color: "#A8B8CC", fontSize: "14px", lineHeight: 1.6 }}>Semantic search over 80+ local postings. Not keywords — understanding what you offer and what companies actually need.</p>
+          </div>
+
+          {/* Cell 3 */}
+          <div className="hover:border-[#2E9E96] hover:shadow-[0_0_24px_rgba(78,205,196,0.08)] transition-all duration-200" style={{ background: "#0C1220", border: "1px solid #1C2A3A", padding: "28px", borderRadius: "14px" }}>
+            <div style={{ fontSize: "24px", marginBottom: "16px" }}>📊</div>
+            <h3 style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 700, fontSize: "1.1rem", marginBottom: "12px", color: "#E8EDF5" }}>Brutal Honesty. Finally.</h3>
+            <p style={{ color: "#A8B8CC", fontSize: "14px", lineHeight: 1.6 }}>&quot;Docker appears in 73% of backend postings in Tunis. Here is the fastest free path to close this gap. This single skill unlocks 4 more companies.&quot;</p>
+          </div>
+
+          {/* Cell 4 */}
+          <div className="hover:border-[#2E9E96] hover:shadow-[0_0_24px_rgba(78,205,196,0.08)] transition-all duration-200" style={{ background: "#0C1220", border: "1px solid #1C2A3A", padding: "28px", borderRadius: "14px" }}>
+            <div style={{ fontSize: "24px", marginBottom: "16px" }}>✉️</div>
+            <h3 style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 700, fontSize: "1.1rem", marginBottom: "12px", color: "#E8EDF5" }}>إكبس — One Click to Apply</h3>
+            <p style={{ color: "#A8B8CC", fontSize: "14px", lineHeight: 1.6 }}>When your score hits 85%, Fynd generates a personalized French application email and sends it automatically via Gmail. You just confirm.</p>
+          </div>
+
+          {/* Cell 5 (row-span-2, moved up via layout flow or grid positioning) */}
+          <div className="hover:border-[#2E9E96] hover:shadow-[0_0_24px_rgba(78,205,196,0.08)] transition-all duration-200" style={{ background: "#0C1220", border: "1px solid #1C2A3A", padding: "28px", borderRadius: "14px", gridRow: "span 2", gridColumn: 3, gridRowStart: 1, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ fontSize: "24px", marginBottom: "20px" }}>📬</div>
+              <h3 style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 700, fontSize: "1.2rem", marginBottom: "12px", color: "#E8EDF5" }}>Track Every Application</h3>
+              <p style={{ color: "#A8B8CC", fontSize: "15px", lineHeight: 1.6 }}>Every sent email logged automatically. Status updates, follow-up reminders, interview tracking.</p>
+            </div>
+            <div style={{ marginTop: "40px", padding: "0", background: "#070C14", border: "1px solid #1C2A3A", borderRadius: "10px", overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid #1C2A3A", borderLeft: "3px solid #44CF6C" }}>
+                <div style={{ fontSize: "13px", color: "#E8EDF5", fontWeight: 500 }}><span style={{ color: "#44CF6C", marginRight: "6px" }}>●</span> Vermeg · Frontend Dev</div>
+                <div style={{ fontSize: "12px", color: "#5A7A9A", marginLeft: "14px" }}>Applied · Mar 1 · 91% · ✓</div>
+              </div>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid #1C2A3A", borderLeft: "3px solid #FFA500" }}>
+                <div style={{ fontSize: "13px", color: "#E8EDF5", fontWeight: 500 }}><span style={{ color: "#FFA500", marginRight: "6px" }}>●</span> Talan · Backend Dev</div>
+                <div style={{ fontSize: "12px", color: "#5A7A9A", marginLeft: "14px" }}>Awaiting Response · 78%</div>
+              </div>
+              <div style={{ padding: "12px 16px", borderLeft: "3px solid #F85149" }}>
+                <div style={{ fontSize: "13px", color: "#E8EDF5", fontWeight: 500 }}><span style={{ color: "#F85149", marginRight: "6px" }}>●</span> Orange TN · DevOps</div>
+                <div style={{ fontSize: "12px", color: "#5A7A9A", marginLeft: "14px" }}>Follow-up Due · 62%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 5 — How It Works */}
+      <section id="process" style={{ padding: "80px 48px", background: "#0C1220", borderTop: "1px solid #1C2A3A" }}>
+        <div className="max-w-[1200px] mx-auto">
+          <div style={{ textAlign: "center", marginBottom: "80px" }}>
+            <div style={{ color: "#4ECDC4", fontSize: "14px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", marginBottom: "16px" }}>The Process</div>
+            <h2 style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 800, fontSize: "2.8rem", color: "#E8EDF5", lineHeight: 1.2 }}>
+              From CV to Competitive<br />in 3 Guided Steps.
             </h2>
-            <AgentReasoning nodes={nodes} progress={progress} />
           </div>
-        )}
 
-        {/* ERROR VIEW */}
-        {view === "error" && (
-          <div
-            style={{
-              background: "rgba(248,81,73,0.1)",
-              border: `1px solid ${COLORS.danger}`,
-              borderRadius: 12,
-              padding: 24,
-              maxWidth: 600,
-            }}
-          >
-            <h3 style={{ color: COLORS.danger, margin: "0 0 12px" }}>Analysis failed</h3>
-            <p style={{ color: COLORS.textMuted, margin: "0 0 16px", lineHeight: 1.6 }}>
-              Check that the Python backend is running:
-              <br />
-              <code style={{ color: COLORS.teal }}>uvicorn backend.main:app --reload --port 8000</code>
-            </p>
-            <button
-              onClick={reset}
-              style={{
-                padding: "10px 20px",
-                background: COLORS.danger,
-                color: "white",
-                border: "none",
-                borderRadius: 8,
-                cursor: "pointer",
-                fontWeight: 600,
-              }}
-            >
-              Try Again
+          <div style={{ display: "flex", justifyContent: "space-between", position: "relative" }}>
+            <div style={{ position: "absolute", top: "24px", left: "100px", right: "100px", borderTop: "1px dashed #1C2A3A", zIndex: 0 }}></div>
+
+            <div style={{ width: "30%", textAlign: "center", position: "relative", zIndex: 10, background: "#0C1220", padding: "0 20px" }}>
+              <div style={{ width: "48px", height: "48px", borderRadius: "50%", border: "2px solid #4ECDC4", background: "#070C14", color: "#4ECDC4", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 800, fontSize: "18px", margin: "0 auto 24px" }}>01</div>
+              <h3 style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 600, fontSize: "1.2rem", color: "#E8EDF5", marginBottom: "16px" }}>Paste Your CV</h3>
+              <p style={{ color: "#5A7A9A", fontSize: "14px", lineHeight: 1.6 }}>Fynd reads your profile, scores it against ATS criteria, finds matching Tunisian opportunities, and maps your position in the local market.</p>
+            </div>
+
+            <div style={{ width: "30%", textAlign: "center", position: "relative", zIndex: 10, background: "#0C1220", padding: "0 20px" }}>
+              <div style={{ width: "48px", height: "48px", borderRadius: "50%", border: "2px solid #4ECDC4", background: "#070C14", color: "#4ECDC4", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 800, fontSize: "18px", margin: "0 auto 24px" }}>02</div>
+              <h3 style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 600, fontSize: "1.2rem", color: "#E8EDF5", marginBottom: "16px" }}>Close Your Gaps</h3>
+              <p style={{ color: "#5A7A9A", fontSize: "14px", lineHeight: 1.6 }}>See exactly what the market wants that you don&apos;t have yet. Ranked by impact. Fastest path provided. Market data confirmed.</p>
+            </div>
+
+            <div style={{ width: "30%", textAlign: "center", position: "relative", zIndex: 10, background: "#0C1220", padding: "0 20px" }}>
+              <div style={{ width: "48px", height: "48px", borderRadius: "50%", border: "2px solid #4ECDC4", background: "#070C14", color: "#4ECDC4", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 800, fontSize: "18px", margin: "0 auto 24px" }}>03</div>
+              <h3 style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 600, fontSize: "1.2rem", color: "#E8EDF5", marginBottom: "16px" }}>إكبس</h3>
+              <p style={{ color: "#5A7A9A", fontSize: "14px", lineHeight: 1.6 }}>Your tasks are done. Your score hit 85%. One click sends a personalized email. You&apos;re hired.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 6 — Tier Comparison */}
+      <section id="pricing" style={{ padding: "120px 48px", borderTop: "1px solid #1C2A3A" }}>
+        <h2 style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 800, fontSize: "2.8rem", color: "#E8EDF5", textAlign: "center", marginBottom: "80px" }}>Choose Your Path</h2>
+
+        <div className="max-w-[1000px] mx-auto flex gap: 32px" style={{ gap: "32px", alignItems: "center", justifyContent: "center" }}>
+          {/* Free Card */}
+          <div style={{ width: "45%", background: "#0C1220", border: "1px solid #1C2A3A", borderRadius: "16px", padding: "40px", position: "relative" }}>
+            <div style={{ background: "rgba(255,255,255,0.05)", color: "#A8B8CC", fontSize: "12px", fontWeight: 600, padding: "4px 12px", borderRadius: "20px", display: "inline-block", marginBottom: "24px" }}>FREE</div>
+            <h3 style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 700, fontSize: "1.8rem", color: "#E8EDF5", marginBottom: "8px" }}>Scan & Apply</h3>
+            <div style={{ color: "#A8B8CC", fontSize: "15px", marginBottom: "32px" }}>0 TND / month</div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "40px", fontSize: "14px", color: "#A8B8CC" }}>
+              <div><span style={{ color: "#44CF6C", marginRight: "12px" }}>✓</span> ATS score & corrections</div>
+              <div><span style={{ color: "#44CF6C", marginRight: "12px" }}>✓</span> Job matching</div>
+              <div><span style={{ color: "#44CF6C", marginRight: "12px" }}>✓</span> 85%+ auto-apply emails</div>
+              <div style={{ color: "#5A7A9A" }}><span style={{ marginRight: "12px" }}>✗</span> Gap analysis</div>
+              <div style={{ color: "#5A7A9A" }}><span style={{ marginRight: "12px" }}>✗</span> Action plan</div>
+              <div style={{ color: "#5A7A9A" }}><span style={{ marginRight: "12px" }}>✗</span> CV auto-updates</div>
+              <div style={{ color: "#5A7A9A" }}><span style={{ marginRight: "12px" }}>✗</span> Application tracker</div>
+            </div>
+
+            <Link href="/app" style={{ display: "block", textAlign: "center", padding: "14px", borderRadius: "12px", border: "1px solid #4ECDC4", color: "#4ECDC4", fontWeight: 600, transition: "all 0.2s" }} className="hover:bg-[#4ECDC4] hover:text-[#070C14]">
+              Start Free →
+            </Link>
+          </div>
+
+          {/* Premium Card */}
+          <div style={{ width: "55%", background: "#0C1220", border: "1px solid #FFE66D", borderRadius: "16px", padding: "48px", position: "relative", boxShadow: "0 0 40px rgba(255,230,109,0.1)", transform: "scale(1.05)" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "3px", background: "linear-gradient(90deg, #4ECDC4, #FFE66D)", borderTopLeftRadius: "16px", borderTopRightRadius: "16px" }}></div>
+
+            <div style={{ background: "rgba(255,230,109,0.15)", color: "#FFE66D", fontSize: "12px", fontWeight: 600, padding: "4px 12px", borderRadius: "20px", display: "inline-block", marginBottom: "24px" }}>COMING SOON ⭐</div>
+            <h3 style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 800, fontSize: "2.2rem", color: "#E8EDF5", marginBottom: "8px" }}>Build & Become</h3>
+            <div style={{ color: "#5A7A9A", fontSize: "15px", marginBottom: "32px", fontStyle: "italic" }}>Soon</div>
+
+            <div style={{ marginBottom: "24px", color: "#E8EDF5", fontSize: "15px", fontWeight: 500 }}>Everything in Free, plus:</div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "40px", fontSize: "14px", color: "#A8B8CC" }}>
+              <div><span style={{ color: "#FFE66D", marginRight: "12px" }}>✓</span> Deep gap prioritization</div>
+              <div><span style={{ color: "#FFE66D", marginRight: "12px" }}>✓</span> Personalized action plan</div>
+              <div><span style={{ color: "#FFE66D", marginRight: "12px" }}>✓</span> CV auto-updates on completion</div>
+              <div><span style={{ color: "#FFE66D", marginRight: "12px" }}>✓</span> Application tracker + follow-ups</div>
+              <div><span style={{ color: "#FFE66D", marginRight: "12px" }}>✓</span> Interview prep questions</div>
+              <div><span style={{ color: "#FFE66D", marginRight: "12px" }}>✓</span> Deadline-aware scheduling</div>
+              <div><span style={{ color: "#FFE66D", marginRight: "12px" }}>✓</span> Agent self-critique loop</div>
+            </div>
+
+            <button style={{ display: "block", width: "100%", textAlign: "center", padding: "16px", borderRadius: "12px", background: "#FFE66D", color: "#070C14", fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 800, transition: "box-shadow 0.2s" }} className="hover:shadow-[0_0_24px_rgba(255,230,109,0.3)]">
+              Join Waitlist →
             </button>
           </div>
-        )}
+        </div>
+      </section>
 
-        {/* RESULTS VIEW */}
-        {view === "results" && result && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 820 }}>
-            {/* Header */}
-            <div>
-              <h2
-                style={{
-                  fontFamily: "var(--font-syne, 'Syne', sans-serif)",
-                  fontWeight: 800,
-                  fontSize: 30,
-                  margin: 0,
-                  color: COLORS.textPrimary,
-                }}
-              >
-                Profile Analysis
-              </h2>
-              <p style={{ margin: "6px 0 0", fontSize: 14, color: COLORS.textMuted }}>
-                {jobTitle ? `${level} · ${jobTitle}` : level}
-                {city !== "Any" ? ` · ${city}` : ""}
-              </p>
+      {/* SECTION 7 — The m3aref Reality Check */}
+      <section style={{ padding: "80px 48px" }}>
+        <div style={{ background: "#0C1220", border: "1px solid #1C2A3A", borderRadius: "24px", padding: "48px", maxWidth: "680px", margin: "0 auto", position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", top: "-20px", left: "20px", fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 800, fontSize: "8rem", color: "#4ECDC4", opacity: 0.08, lineHeight: 1 }}>&quot;</div>
+
+          <div style={{ position: "relative", zIndex: 10, textAlign: "center" }}>
+            <h4 style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 700, fontSize: "1.2rem", color: "#5A7A9A", letterSpacing: "2px", marginBottom: "24px" }}>THE QUESTION EVERYONE ASKS:</h4>
+
+            <div style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 800, fontSize: "1.6rem", color: "#E8EDF5", marginBottom: "32px", lineHeight: 1.4 }}>
+              &quot;But doesn&apos;t nepotism<br />dominate hiring in Tunisia?&quot;
             </div>
 
-            {/* Metrics row */}
-            <div style={{ display: "flex", gap: 12 }}>
-              {[
-                { label: "ATS Score", val: `${result.ats_result?.total ?? 0}/100`, color: COLORS.teal },
-                { label: "Status", val: result.ats_result?.label ?? "—", color: COLORS.warning },
-                { label: "Jobs Found", val: String(result.job_matches?.length ?? 0), color: COLORS.success },
-                {
-                  label: "Top Match",
-                  val: `${result.job_matches?.[0]?.match_score ?? 0}%`,
-                  color: COLORS.gold,
-                },
-              ].map(({ label, val, color }) => (
-                <div
-                  key={label}
-                  style={{
-                    flex: 1,
-                    backgroundColor: COLORS.surface,
-                    border: `1px solid ${COLORS.border}`,
-                    borderRadius: 10,
-                    padding: "14px 18px",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontFamily: "var(--font-syne, 'Syne', sans-serif)",
-                      color,
-                      fontSize: "1.4rem",
-                      fontWeight: 800,
-                    }}
-                  >
-                    {val}
-                  </div>
-                  <div style={{ color: COLORS.textMuted, fontSize: "0.78rem" }}>{label}</div>
-                </div>
-              ))}
+            <div style={{ fontWeight: 300, fontSize: "1.05rem", color: "#A8B8CC", lineHeight: 1.8, marginBottom: "40px" }}>
+              Yes. And that&apos;s exactly why students without connections<br />need a sharper competitive edge.
+              <br /><br />
+              Fynd gives them what nepotism gives connected students:<br />insider knowledge about what it actually takes to get hired.
             </div>
 
-            {/* Tabs */}
-            <div
-              style={{
-                display: "flex",
-                gap: 4,
-                borderBottom: `1px solid ${COLORS.border}`,
-                paddingBottom: 0,
-              }}
-            >
-              {tabs.map((tab, i) => {
-                const isActive = activeTab === i
-                return (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(i)}
-                    style={{
-                      padding: "10px 18px",
-                      fontSize: 13,
-                      fontWeight: isActive ? 400 : 300,
-                      color: isActive ? COLORS.teal : COLORS.textMuted,
-                      background: "none",
-                      border: "none",
-                      borderBottom: isActive ? `2px solid ${COLORS.teal}` : "2px solid transparent",
-                      cursor: "pointer",
-                      transition: "color 0.2s ease",
-                      marginBottom: -1,
-                      letterSpacing: "0.02em",
-                    }}
-                  >
-                    {tab}
-                  </button>
-                )
-              })}
-            </div>
+            <div style={{ width: "40px", height: "3px", background: "#4ECDC4", margin: "0 auto 24px" }}></div>
 
-            {/* Tab content */}
-            <div>
-              {/* ATS Tab */}
-              {activeTab === 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-                  <ATSGauge
-                    score={result.ats_result?.total ?? 0}
-                    label={result.ats_result?.label ?? "—"}
-                    breakdown={result.ats_result.breakdown || {
-                      keyword_match: { score: 0, feedback: "" },
-                      keyword_placement: { score: 0, feedback: "" },
-                      sections: { score: 0, feedback: "" },
-                      experience: { score: 0, feedback: "" },
-                      formatting: { score: 0, feedback: "" },
-                    }}
-                  />
-
-                  {/* Side-by-Side CV View (NEW) */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      <label style={{ fontSize: 11, color: COLORS.textMuted, textTransform: "uppercase" }}>Your Raw CV</label>
-                      <div
-                        style={{
-                          height: 300,
-                          overflowY: "auto",
-                          backgroundColor: COLORS.surface,
-                          border: `1px solid ${COLORS.border}`,
-                          borderRadius: 8,
-                          padding: 12,
-                          fontSize: 12,
-                          color: COLORS.textMuted,
-                          whiteSpace: "pre-wrap"
-                        }}
-                      >
-                        {cvText}
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      <label style={{ fontSize: 11, color: COLORS.teal, textTransform: "uppercase", fontWeight: 600 }}>Jadara Optimized Version (ATS-Ready)</label>
-                      <div
-                        style={{
-                          height: 300,
-                          overflowY: "auto",
-                          backgroundColor: "rgba(78,205,196,0.03)",
-                          border: `1px solid ${COLORS.teal}40`,
-                          borderRadius: 8,
-                          padding: 12,
-                          fontSize: 13,
-                          color: COLORS.textPrimary,
-                          whiteSpace: "pre-wrap",
-                          lineHeight: 1.6
-                        }}
-                      >
-                        {result.cv_optimized || "No optimization generated."}
-                      </div>
-                    </div>
-                  </div>
-                  {result.ats_corrections?.length > 0 && (
-                    <div
-                      style={{
-                        backgroundColor: COLORS.surface,
-                        border: `1px solid ${COLORS.border}`,
-                        borderRadius: 14,
-                        padding: 24,
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 14,
-                      }}
-                    >
-                      <h3
-                        style={{
-                          margin: 0,
-                          fontFamily: "var(--font-syne, 'Syne', sans-serif)",
-                          fontWeight: 800,
-                          fontSize: 16,
-                          color: COLORS.textPrimary,
-                        }}
-                      >
-                        Suggested Corrections
-                      </h3>
-                      {result.ats_corrections.map((c: string, i: number) => (
-                        <div
-                          key={i}
-                          style={{
-                            padding: "10px 14px",
-                            backgroundColor: COLORS.bg,
-                            borderRadius: 8,
-                            borderLeft: `3px solid ${COLORS.teal}`,
-                            fontSize: 13.5,
-                            color: COLORS.textPrimary,
-                            fontWeight: 300,
-                            lineHeight: 1.6,
-                          }}
-                        >
-                          ⚡ {c}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Jobs Tab */}
-              {activeTab === 1 && (
-                <JobMatchesPanel
-                  jobs={result.job_matches?.map((j: any) => ({
-                    title: j.title,
-                    company: j.company,
-                    city: j.city,
-                    salary_range_tnd: j.salary_range_tnd || "—",
-                    match_score: j.match_score,
-                    required_skills: j.required_skills || "",
-                    alignment_reasoning: j.alignment_reasoning,
-                  }))}
-                  onApply={handleApply}
-                />
-              )}
-
-              {/* Gap Analysis Tab */}
-              {activeTab === 2 && (
-                <SkillGapPanel
-                  gaps={result.gap_report?.prioritized_gaps ?? []}
-                  currentMatchPct={result.job_matches?.[0]?.match_score ?? 50}
-                />
-              )}
-
-              {/* Quest Board Tab */}
-              {activeTab === 3 && (
-                <QuestChecklist
-                  tasks={result.task_plan ?? []}
-                  xp_total={xpTotal}
-                  deadline_days={21}
-                  onTaskComplete={handleTaskComplete}
-                />
-              )}
-
-              {/* Tracker Tab */}
-              {activeTab === 4 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <h3
-                      style={{
-                        margin: 0,
-                        fontFamily: "var(--font-syne, 'Syne', sans-serif)",
-                        fontWeight: 800,
-                        fontSize: 18,
-                        color: COLORS.teal,
-                      }}
-                    >
-                      Application Tracker
-                    </h3>
-                    <button
-                      onClick={refreshTracker}
-                      style={{
-                        padding: "6px 14px",
-                        background: "none",
-                        border: `1px solid ${COLORS.border}`,
-                        borderRadius: 6,
-                        color: COLORS.textMuted,
-                        cursor: "pointer",
-                        fontSize: 12,
-                      }}
-                    >
-                      ↻ Refresh
-                    </button>
-                  </div>
-
-                  {tracker.length === 0 ? (
-                    <div
-                      style={{
-                        backgroundColor: COLORS.surface,
-                        border: `1px solid ${COLORS.border}`,
-                        borderRadius: 12,
-                        padding: "40px 24px",
-                        textAlign: "center",
-                      }}
-                    >
-                      <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.4 }}>📋</div>
-                      <div style={{ color: COLORS.textMuted, fontSize: 14, fontWeight: 300 }}>
-                        No applications tracked yet.
-                      </div>
-                      <div style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 6, fontWeight: 300 }}>
-                        Send an application email and it will appear here automatically.
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                      {tracker.map((entry) => {
-                        const statusColor =
-                          entry.status === "Applied" ? COLORS.teal
-                            : entry.status.includes("failed") ? COLORS.warning
-                              : entry.status === "Interview" ? COLORS.gold
-                                : entry.status === "Rejected" ? COLORS.danger
-                                  : entry.status === "Offered" ? COLORS.success
-                                    : COLORS.textMuted
-
-                        return (
-                          <div
-                            key={entry.id}
-                            style={{
-                              backgroundColor: COLORS.surface,
-                              border: `1px solid ${COLORS.border}`,
-                              borderLeft: `3px solid ${statusColor}`,
-                              borderRadius: 12,
-                              padding: "16px 18px",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 16,
-                            }}
-                          >
-                            {/* Job info */}
-                            <div style={{ flex: 1 }}>
-                              <div
-                                style={{
-                                  fontSize: 14,
-                                  fontWeight: 400,
-                                  color: COLORS.textPrimary,
-                                  marginBottom: 3,
-                                }}
-                              >
-                                {entry.job_title}
-                              </div>
-                              <div style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: 300 }}>
-                                {entry.company}
-                              </div>
-                              {entry.notes && (
-                                <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 4, fontStyle: "italic" }}>
-                                  {entry.notes}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Right: status + date */}
-                            <div
-                              style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "flex-end",
-                                gap: 5,
-                                flexShrink: 0,
-                              }}
-                            >
-                              <select
-                                value={entry.status}
-                                onChange={async (e) => {
-                                  await updateTrackerStatus(entry.id, { status: e.target.value })
-                                  refreshTracker()
-                                }}
-                                style={{
-                                  fontSize: 11,
-                                  color: statusColor,
-                                  backgroundColor: "rgba(255,255,255,0.04)",
-                                  border: `1px solid ${COLORS.border}`,
-                                  borderRadius: 5,
-                                  padding: "3px 8px",
-                                  cursor: "pointer",
-                                  appearance: "none",
-                                  textAlign: "right",
-                                  fontWeight: 400,
-                                }}
-                              >
-                                {["Applied", "Applied (email failed)", "Interview", "Rejected", "Offered", "Accepted"].map((s) => (
-                                  <option key={s} value={s} style={{ backgroundColor: COLORS.surface, color: COLORS.textPrimary }}>
-                                    {s}
-                                  </option>
-                                ))}
-                              </select>
-                              <span
-                                style={{
-                                  fontSize: 10,
-                                  color: COLORS.textMuted,
-                                  backgroundColor: "rgba(255,255,255,0.04)",
-                                  border: `1px solid ${COLORS.border}`,
-                                  borderRadius: 5,
-                                  padding: "2px 7px",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {new Date(entry.date_applied).toLocaleDateString()}
-                              </span>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Email Tab */}
-              {activeTab === (tabs.indexOf("✉️ Email")) && result.application_email && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  <h3
-                    style={{
-                      margin: 0,
-                      fontFamily: "var(--font-syne, 'Syne', sans-serif)",
-                      fontWeight: 800,
-                      fontSize: 18,
-                      color: COLORS.teal,
-                    }}
-                  >
-                    Generated Application Email
-                  </h3>
-                  <pre
-                    style={{
-                      background: COLORS.surface,
-                      border: `1px solid ${COLORS.border}`,
-                      borderRadius: 12,
-                      padding: 24,
-                      whiteSpace: "pre-wrap",
-                      fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
-                      lineHeight: 1.7,
-                      color: COLORS.textPrimary,
-                      fontSize: "0.9rem",
-                      fontWeight: 300,
-                    }}
-                  >
-                    {result.application_email}
-                  </pre>
-                  <div style={{ display: "flex", gap: 12 }}>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(result.application_email)
-                        showToast("📋 Email copied to clipboard!")
-                      }}
-                      style={{
-                        padding: "12px 24px",
-                        background: COLORS.surface,
-                        border: `1px solid ${COLORS.border}`,
-                        borderRadius: 8,
-                        color: COLORS.textPrimary,
-                        cursor: "pointer",
-                        fontWeight: 400,
-                        fontSize: 13,
-                      }}
-                    >
-                      📋 Copy Email
-                    </button>
-                    {result.job_matches?.[0] && (
-                      <button
-                        onClick={() => handleSendEmail(result.job_matches[0])}
-                        disabled={sendingEmail}
-                        style={{
-                          padding: "12px 24px",
-                          background: sendingEmail ? COLORS.border : COLORS.teal,
-                          border: "none",
-                          borderRadius: 8,
-                          color: "#080B14",
-                          cursor: sendingEmail ? "not-allowed" : "pointer",
-                          fontFamily: "var(--font-syne, 'Syne', sans-serif)",
-                          fontWeight: 800,
-                          fontSize: 13,
-                          opacity: sendingEmail ? 0.6 : 1,
-                        }}
-                      >
-                        {sendingEmail ? "Sending…" : "Send via n8n →"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
+            <div style={{ color: "#E8EDF5", fontStyle: "italic", fontSize: "14px" }}>
+              Your Guided Path to the Perfect Job.
             </div>
           </div>
-        )}
-      </main>
+        </div>
+      </section>
+
+      {/* SECTION 8 — CTA Banner */}
+      <section style={{ background: "linear-gradient(135deg, rgba(78,205,196,0.06) 0%, rgba(30,58,95,0.15) 50%, rgba(255,230,109,0.04) 100%)", borderTop: "1px solid #1C2A3A", borderBottom: "1px solid #1C2A3A", padding: "100px 0", textAlign: "center", position: "relative", overflow: "hidden" }}>
+        {/* Large faint logo behind */}
+        <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)", opacity: 0.03, pointerEvents: "none" }}>
+          <svg width="400" height="400" viewBox="0 0 32 32">
+            <polygon points="14,2 28,2 28,16 22,10 14,18 10,14 18,6" fill="#4ECDC4" />
+            <polygon points="14,2 28,2 22,8" fill="#2E9E96" />
+          </svg>
+        </div>
+
+        <div style={{ position: "relative", zIndex: 10 }}>
+          <h2 style={{ fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 800, fontSize: "3rem", color: "#E8EDF5", marginBottom: "16px", lineHeight: 1.1 }}>
+            You&apos;ve done the work.<br />Now <span style={{ background: "linear-gradient(135deg, #4ECDC4 0%, #2E9E96 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>إكبس.</span>
+          </h2>
+
+          <p style={{ color: "#A8B8CC", fontSize: "1.1rem", fontWeight: 300, marginBottom: "48px", lineHeight: 1.6 }}>
+            Paste your CV. Find your gaps. Close them.<br />Your guided path starts here.
+          </p>
+
+          <Link href="/app" style={{ display: "inline-block", background: "#4ECDC4", color: "#070C14", fontFamily: "var(--font-syne), 'Syne', sans-serif", fontWeight: 700, fontSize: "18px", padding: "18px 40px", borderRadius: "12px", boxShadow: "0 0 30px rgba(78,205,196,0.25)", transition: "transform 0.2s", marginBottom: "16px" }} className="hover:scale-105">
+            Analyze My CV for Free →
+          </Link>
+
+          <div>
+            <a href="#features" style={{ color: "#5A7A9A", fontSize: "12px", display: "inline-block", padding: "8px" }} className="hover:text-[#4ECDC4] transition-colors">or learn more ↓</a>
+          </div>
+
+          <div style={{ color: "#5A7A9A", fontSize: "13px", marginTop: "48px" }}>
+            Built at INNOVARA Hackathon 2026 · Tunisia
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 9 — Footer */}
+      <footer style={{ background: "#070C14", padding: "60px 48px 40px", borderTop: "1px solid #1C2A3A" }}>
+        <div className="max-w-[1200px] mx-auto flex justify-between" style={{ marginBottom: "60px" }}>
+          {/* Left */}
+          <div style={{ width: "33%" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "16px" }}>
+              <img src="/fynd-logo.png" alt="Fynd.tn" style={{ height: 28 }} />
+              <div className="fynd-logo-text" style={{ fontSize: "1.2rem", marginTop: "2px" }}>Fynd<span style={{ color: "#5A7A9A", fontSize: "14px", fontWeight: 400 }}>.tn</span></div>
+            </div>
+            <p style={{ color: "#5A7A9A", fontSize: "14px", fontWeight: 300, lineHeight: 1.6 }}>
+              &quot;Your Guided Path to<br />the Perfect Job.&quot;
+            </p>
+          </div>
+
+          {/* Center */}
+          <div style={{ width: "33%", display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={{ color: "#E8EDF5", fontWeight: 600, marginBottom: "8px", fontSize: "14px" }}>Features</div>
+            <a href="#features" style={{ color: "#5A7A9A", fontSize: "14px", transition: "color 0.2s" }} className="hover:text-[#4ECDC4]">CV Analysis</a>
+            <a href="#process" style={{ color: "#5A7A9A", fontSize: "14px", transition: "color 0.2s" }} className="hover:text-[#4ECDC4]">How It Works</a>
+            <a href="#pricing" style={{ color: "#5A7A9A", fontSize: "14px", transition: "color 0.2s" }} className="hover:text-[#4ECDC4]">Pricing</a>
+            <a href="#" style={{ color: "#5A7A9A", fontSize: "14px", transition: "color 0.2s" }} className="hover:text-[#4ECDC4]">Privacy Policy</a>
+          </div>
+
+          {/* Right */}
+          <div style={{ width: "33%" }}>
+            <div style={{ color: "#E8EDF5", fontWeight: 600, marginBottom: "16px", fontSize: "14px" }}>Partners</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", color: "#5A7A9A", fontSize: "14px", fontWeight: 500 }}>
+              <div>SIROCCO</div>
+              <div>JobInterview</div>
+              <div>Secret</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ borderTop: "1px solid #1C2A3A", paddingTop: "24px", display: "flex", justifyContent: "space-between", color: "#5A7A9A", fontSize: "13px" }}>
+          <div>© 2026 Fynd.tn — All rights reserved</div>
+          <div>Built with ❤️ in Tunisia</div>
+        </div>
+      </footer>
     </div>
-  )
+  );
 }

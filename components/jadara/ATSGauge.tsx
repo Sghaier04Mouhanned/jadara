@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
+import { useCountUp } from "@/hooks/use-count-up"
 
 const COLORS = {
   bg: "#080B14",
@@ -68,34 +69,8 @@ export default function ATSGauge({
     formatting: { score: 3, feedback: "Too long, condense to one page." },
   },
 }: ATSGaugeProps) {
-  const [displayScore, setDisplayScore] = useState(0)
-  const [progress, setProgress] = useState(0)
-  const rafRef = useRef<number | null>(null)
-  const startTimeRef = useRef<number | null>(null)
-
-  useEffect(() => {
-    startTimeRef.current = null
-
-    const animate = (timestamp: number) => {
-      if (startTimeRef.current === null) startTimeRef.current = timestamp
-      const elapsed = timestamp - startTimeRef.current
-      const t = Math.min(elapsed / ANIMATION_DURATION, 1)
-      // Ease out cubic
-      const eased = 1 - Math.pow(1 - t, 3)
-
-      setProgress(eased)
-      setDisplayScore(Math.round(eased * score))
-
-      if (t < 1) {
-        rafRef.current = requestAnimationFrame(animate)
-      }
-    }
-
-    rafRef.current = requestAnimationFrame(animate)
-    return () => {
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
-    }
-  }, [score])
+  const displayScore = useCountUp(score, ANIMATION_DURATION)
+  const progress = score > 0 ? displayScore / score : 0
 
   const strokeColor = getScoreColor(score)
   const statusStyle = getStatusStyle(label)

@@ -3,12 +3,12 @@ import { Syne, DM_Sans } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
-const syne = Syne({ subsets: ['latin'], weight: ['400', '800'], variable: '--font-syne' })
-const dmSans = DM_Sans({ subsets: ['latin'], weight: ['300', '400'], variable: '--font-dm-sans' })
+const syne = Syne({ subsets: ['latin'], weight: ['400', '600', '700', '800'], variable: '--font-syne' })
+const dmSans = DM_Sans({ subsets: ['latin'], weight: ['300', '400', '500'], style: ['normal', 'italic'], variable: '--font-dm-sans' })
 
 export const metadata: Metadata = {
-  title: 'Jadara — جدارة | Career AI Agent',
-  description: 'AI-powered career intelligence dashboard for Tunisian job seekers. Paste your CV, get brutal honest feedback.',
+  title: 'Fynd.tn | Your Guided Path to the Perfect Job',
+  description: 'Your Guided Path to the Perfect Job. Paste your CV, find your skill gaps, build an action plan, and apply automatically.',
   generator: 'v0.app',
   icons: {
     icon: [

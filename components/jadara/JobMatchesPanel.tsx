@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useCountUp } from "@/hooks/use-count-up"
 
 const COLORS = {
   surface: "#0D1117",
@@ -67,6 +68,38 @@ function scoreColor(score: number) {
 export interface JobMatchesPanelProps {
   jobs?: Job[]
   onApply?: (job: Job) => void
+}
+
+function AnimatedMatchScore({ score, color }: { score: number; color: string }) {
+  const displayScore = useCountUp(score, 1200)
+
+  return (
+    <div
+      style={{
+        backgroundColor: `${color}18`,
+        border: `1px solid ${color}40`,
+        borderRadius: 10,
+        padding: "10px 14px",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 2,
+      }}
+    >
+      <span
+        style={{
+          fontFamily: "var(--font-syne, 'Syne', sans-serif)",
+          fontWeight: 800,
+          fontSize: "1.4rem",
+          color,
+          lineHeight: 1,
+        }}
+      >
+        {displayScore}%
+      </span>
+      <span style={{ fontSize: 10, color: COLORS.textMuted, letterSpacing: "0.05em" }}>Match</span>
+    </div>
+  )
 }
 
 export default function JobMatchesPanel({ jobs = DEFAULT_JOBS, onApply }: JobMatchesPanelProps) {
@@ -219,31 +252,7 @@ export default function JobMatchesPanel({ jobs = DEFAULT_JOBS, onApply }: JobMat
               }}
             >
               {/* Score badge */}
-              <div
-                style={{
-                  backgroundColor: `${color}18`,
-                  border: `1px solid ${color}40`,
-                  borderRadius: 10,
-                  padding: "10px 14px",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 2,
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: "var(--font-syne, 'Syne', sans-serif)",
-                    fontWeight: 800,
-                    fontSize: "1.4rem",
-                    color,
-                    lineHeight: 1,
-                  }}
-                >
-                  {job.match_score}%
-                </span>
-                <span style={{ fontSize: 10, color: COLORS.textMuted, letterSpacing: "0.05em" }}>Match</span>
-              </div>
+              <AnimatedMatchScore score={job.match_score} color={color} />
 
               {/* Action button */}
               {job.match_score >= 85 ? (
