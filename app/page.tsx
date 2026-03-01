@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useAgent } from "@/hooks/use-agent"
-import { sendEmail, updateTrackerStatus } from "@/lib/api"
+import { sendEmail, updateTrackerStatus, uploadPdf } from "@/lib/api"
 
 import ATSGauge from "@/components/jadara/ATSGauge"
 import AgentReasoning from "@/components/jadara/AgentReasoning"
@@ -63,6 +63,9 @@ export default function JadaraApp() {
   const [activeTab, setActiveTab] = useState(0)
   const [toast, setToast] = useState<{ msg: string; visible: boolean }>({ msg: "", visible: false })
   const [sendingEmail, setSendingEmail] = useState(false)
+  const [uploadingPdf, setUploadingPdf] = useState(false)
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const showToast = (msg: string) => {
     setToast({ msg, visible: true })
@@ -137,6 +140,28 @@ export default function JadaraApp() {
       await refreshTracker()
     } finally {
       setSendingEmail(false)
+    }
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingPdf(true)
+    showToast("Extracting text from PDF...")
+    try {
+      const res = await uploadPdf(file)
+      if (res.error) {
+        showToast(`⚠️ PDF Error: ${res.error}`)
+      } else if (res.text) {
+        setCvText(res.text)
+        showToast("✅ PDF successfully extracted!")
+      }
+    } catch {
+      showToast("❌ Failed to process PDF")
+    } finally {
+      setUploadingPdf(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
     }
   }
 
@@ -265,17 +290,40 @@ export default function JadaraApp() {
 
         {/* CV Input */}
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label
-            style={{
-              fontSize: 11,
-              fontWeight: 400,
-              color: COLORS.textMuted,
-              textTransform: "uppercase",
-              letterSpacing: "0.1em",
-            }}
-          >
-            Paste Your CV
-          </label>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <label
+              style={{ fontSize: 11, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}
+            >
+              Paste Your CV (or Upload)
+            </label>
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingPdf}
+              style={{
+                background: "none",
+                border: `1px solid ${COLORS.teal}`,
+                color: COLORS.teal,
+                borderRadius: 6,
+                padding: "4px 8px",
+                fontSize: 10,
+                cursor: uploadingPdf ? "not-allowed" : "pointer",
+                opacity: uploadingPdf ? 0.5 : 1,
+                display: "flex",
+                alignItems: "center",
+                gap: 4
+              }}
+            >
+              📄 {uploadingPdf ? "EXTRACTING..." : "UPLOAD PDF"}
+            </button>
+            <input
+              type="file"
+              accept=".pdf"
+              ref={fileInputRef}
+              style={{ display: "none" }}
+              onChange={handleFileUpload}
+            />
+          </div>
           <textarea
             value={cvText}
             onChange={(e) => setCvText(e.target.value)}

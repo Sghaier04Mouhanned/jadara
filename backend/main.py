@@ -1,8 +1,10 @@
 import json
 import asyncio
 import os
+import io
+import PyPDF2
 from datetime import datetime
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -178,31 +180,32 @@ Return ONLY the full updated CV text. No markdown formatting."""
             updated_cv_optimized = req.current_cv + f"\n[Skill added: {req.skill_added}]"
 
     # Extract updated skills
-    try:
-        prompt = f"""List ALL skills from this CV as a JSON array of strings.
-Return ONLY the JSON array, no markdown.
-CV: {updated_cv_optimized[:2000]}"""
-        raw = llm.invoke(prompt).content.strip()
-        raw = raw.replace("```json", "").replace("```", "").strip()
-        updated_skills = json.loads(raw)
-    except Exception:
-        updated_skills = req.student_skills + (
-            [req.skill_added] if req.skill_added else []
-        )
+    # We explicitly PRESERVE all existing skills and just append the new one,
+    # because relying on the LLM to cleanly extract all old skills might drop some
+    # and cause the match score to downgrade.
+    updated_skills = list(req.student_skills)
+    if req.skill_added and req.skill_added not in updated_skills:
+        updated_skills.append(req.skill_added)
 
     expanded = expand_skills(updated_skills)
 
     new_scores = []
     apply_ready_jobs = []
     for job in req.job_matches:
+        old_score = job.get("match_score", 0)
         new_score = score_match(expanded, str(job.get("required_skills", "")))
+        
+        # Guard against any weird score drops (score should only go up or stay same)
+        if new_score < old_score:
+            new_score = old_score
+
         entry = {
             "job_id": job.get("job_id", ""),
             "company": job.get("company", ""),
             "title": job.get("title", ""),
-            "old_score": job.get("match_score", 0),
+            "old_score": old_score,
             "new_score": new_score,
-            "delta": round(new_score - job.get("match_score", 0), 1),
+            "delta": round(new_score - old_score, 1),
         }
         new_scores.append(entry)
         if new_score >= 85:
@@ -308,6 +311,28 @@ def add_tracker_entry(req: TrackerAddRequest):
     }
     application_tracker.append(entry)
     return {"entry": entry}
+
+
+@app.post("/api/upload-pdf")
+async def upload_pdf(file: UploadFile = File(...)):
+    """Extract text from an uploaded PDF file."""
+    if not file.filename.lower().endswith(".pdf"):
+        return {"error": "File must be a PDF"}
+    
+    try:
+        content = await file.read()
+        pdf_reader = PyPDF2.PdfReader(io.BytesIO(content))
+        
+        extracted_text = []
+        for page in pdf_reader.pages:
+            text = page.extract_text()
+            if text:
+                extracted_text.append(text)
+                
+        full_text = "\n".join(extracted_text)
+        return {"text": full_text.strip()}
+    except Exception as e:
+        return {"error": f"Failed to parse PDF: {str(e)}"}
 
 
 @app.patch("/api/tracker/{entry_id}")
