@@ -187,9 +187,10 @@ def routing(state: AgentState) -> dict:
     return {"routing_decision": decision}
 
 
-def route_fn(state: AgentState) -> str:
+def post_task_plan_route(state: AgentState) -> str:
+    """After task_plan, go to email if auto_apply/informed, else END."""
     d = state.get("routing_decision", "redirect")
-    return "email" if d in ("auto_apply", "informed") else "gap_analysis"
+    return "email" if d in ("auto_apply", "informed") else "__end__"
 
 
 # ── NODE 5A: EMAIL GENERATION ─────────────────────────────────────────────────
@@ -322,18 +323,24 @@ def get_pipeline():
     workflow.add_node("gap_analysis", gap_analysis)
     workflow.add_node("task_plan", task_plan)
 
+    # Linear flow: intake → optimize_cv → ats → market → routing
     workflow.set_entry_point("intake")
     workflow.add_edge("intake", "optimize_cv")
     workflow.add_edge("optimize_cv", "ats")
     workflow.add_edge("ats", "market")
     workflow.add_edge("market", "routing")
-    workflow.add_conditional_edges(
-        "routing",
-        route_fn,
-        {"email": "email", "gap_analysis": "gap_analysis"},
-    )
+
+    # ALWAYS run gap_analysis + task_plan regardless of routing decision
+    workflow.add_edge("routing", "gap_analysis")
     workflow.add_edge("gap_analysis", "task_plan")
-    workflow.add_edge("task_plan", END)
-    
+
+    # After task_plan: generate email if auto_apply/informed, else END
+    workflow.add_conditional_edges(
+        "task_plan",
+        post_task_plan_route,
+        {"email": "email", "__end__": END},
+    )
+    workflow.add_edge("email", END)
+
     _pipeline = workflow.compile()
     return _pipeline

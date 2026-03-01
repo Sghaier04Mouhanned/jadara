@@ -1,13 +1,13 @@
 import json
 import asyncio
 import os
+from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
 from dotenv import load_dotenv
-import os
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
@@ -24,6 +24,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ── IN-MEMORY APPLICATION TRACKER ─────────────────────────────────────────────
+application_tracker: list[dict] = []
 
 
 # ── REQUEST MODELS ─────────────────────────────────────────────────────────────
@@ -51,6 +55,13 @@ class EmailSendRequest(BaseModel):
     student_email: str
 
 
+class TrackerAddRequest(BaseModel):
+    job_title: str
+    company: str
+    status: str = "Applied"
+    notes: str = ""
+
+
 # ── NODE LABELS FOR SSE EVENTS ─────────────────────────────────────────────────
 NODE_LABELS = {
     "intake": "📋 Reading your profile",
@@ -58,9 +69,9 @@ NODE_LABELS = {
     "ats": "🔍 Scoring your CV against ATS",
     "market": "🌍 Searching Tunisian job market",
     "routing": "⚡ Determining your strategy",
-    "email": "✉️ Generating application email",
     "gap_analysis": "📊 Analyzing skill gaps",
     "task_plan": "📅 Building your action plan",
+    "email": "✉️ Generating application email",
 }
 
 
@@ -77,6 +88,7 @@ async def analyze(req: AnalyzeRequest):
             "ats_result": {},
             "ats_corrections": [],
             "cv_final": req.cv_text,
+            "cv_optimized": "",
             "job_matches": [],
             "routing_decision": "",
             "gap_report": {},
@@ -113,6 +125,8 @@ async def analyze(req: AnalyzeRequest):
                             "routing_decision",
                             "ats_corrections",
                             "cv_optimized",
+                            "gap_report",
+                            "task_plan",
                         )
                     },
                 }
@@ -237,6 +251,18 @@ CV du candidat:
 @app.post("/api/email/send")
 async def send_email(req: EmailSendRequest):
     print(f"[backend] Received /api/email/send for {req.student_email}")
+
+    # Always log the tracker entry, regardless of n8n success
+    tracker_entry = {
+        "id": len(application_tracker) + 1,
+        "job_title": req.job.get("title", "Unknown"),
+        "company": req.job.get("company", "Unknown"),
+        "status": "Applied",
+        "date_applied": datetime.now().isoformat(),
+        "follow_up_date": "",
+        "notes": f"Email sent to {req.student_email}",
+    }
+
     try:
         result = await trigger_application_email(
             cv_text=req.cv_text,
@@ -245,10 +271,57 @@ async def send_email(req: EmailSendRequest):
             student_email=req.student_email,
         )
         print(f"[backend] n8n trigger result: {result}")
-        return result
+        if result.get("success"):
+            tracker_entry["notes"] = f"Email sent successfully to {req.student_email}"
+        else:
+            tracker_entry["status"] = "Applied (email failed)"
+            tracker_entry["notes"] = f"n8n error: {result.get('error', 'unknown')}"
     except Exception as e:
         print(f"[backend] Error in send_email: {e}")
-        return {"success": False, "error": str(e)}
+        result = {"success": False, "error": str(e)}
+        tracker_entry["status"] = "Applied (email failed)"
+        tracker_entry["notes"] = f"Send error: {str(e)}"
+
+    # Log regardless of n8n outcome
+    application_tracker.append(tracker_entry)
+    print(f"[backend] Tracker entry logged: {tracker_entry['job_title']} at {tracker_entry['company']}")
+
+    return {**result, "tracker_entry": tracker_entry}
+
+
+# ── TRACKER ENDPOINTS ──────────────────────────────────────────────────────────
+@app.get("/api/tracker")
+def get_tracker():
+    return {"entries": application_tracker}
+
+
+@app.post("/api/tracker/add")
+def add_tracker_entry(req: TrackerAddRequest):
+    entry = {
+        "id": len(application_tracker) + 1,
+        "job_title": req.job_title,
+        "company": req.company,
+        "status": req.status,
+        "date_applied": datetime.now().isoformat(),
+        "follow_up_date": "",
+        "notes": req.notes,
+    }
+    application_tracker.append(entry)
+    return {"entry": entry}
+
+
+@app.patch("/api/tracker/{entry_id}")
+def update_tracker_entry(entry_id: int, status: str = "", notes: str = "", follow_up_date: str = ""):
+    for entry in application_tracker:
+        if entry["id"] == entry_id:
+            if status:
+                entry["status"] = status
+            if notes:
+                entry["notes"] = notes
+            if follow_up_date:
+                entry["follow_up_date"] = follow_up_date
+            return {"entry": entry}
+    return {"error": "Entry not found"}
 
 
 @app.get("/api/health")

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useCallback, useRef } from "react";
-import { AgentResult, NodeStatus, AppView } from "@/lib/types";
-import { streamAnalysis, completeTask, generateEmail, sendEmail, AnalyzeParams } from "@/lib/api";
+import { AgentResult, NodeStatus, AppView, TrackerEntry } from "@/lib/types";
+import { streamAnalysis, completeTask, generateEmail, sendEmail, fetchTracker, AnalyzeParams } from "@/lib/api";
 
 const NODE_ORDER = [
     "intake",
@@ -39,7 +39,17 @@ export function useAgent() {
     const [progress, setProgress] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [xpTotal, setXpTotal] = useState(0);
+    const [tracker, setTracker] = useState<TrackerEntry[]>([]);
     const abortRef = useRef<(() => void) | null>(null);
+
+    const refreshTracker = useCallback(async () => {
+        try {
+            const entries = await fetchTracker();
+            setTracker(entries);
+        } catch {
+            // Silently fail — tracker is non-critical
+        }
+    }, []);
 
     const analyze = useCallback((params: AnalyzeParams) => {
         if (abortRef.current) abortRef.current();
@@ -156,9 +166,11 @@ export function useAgent() {
         progress,
         error,
         xpTotal,
+        tracker,
         analyze,
         completeTaskAction,
         triggerEmail,
+        refreshTracker,
         reset,
     };
 }

@@ -1,9 +1,8 @@
 import os
 import httpx
-import os
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
 
 
 async def trigger_application_email(

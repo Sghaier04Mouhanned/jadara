@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useAgent } from "@/hooks/use-agent"
-import { sendEmail } from "@/lib/api"
+import { sendEmail, updateTrackerStatus } from "@/lib/api"
 
 import ATSGauge from "@/components/jadara/ATSGauge"
 import AgentReasoning from "@/components/jadara/AgentReasoning"
@@ -49,10 +49,10 @@ const STATS = [
   { number: "80", label: "Jobs Indexed", color: COLORS.success },
 ]
 
-const TABS = ["🔍 ATS Report", "💼 Job Matches", "📊 Gap Analysis", "📅 Action Plan"]
+const TABS = ["🔍 ATS Report", "💼 Job Matches", "📊 Gap Analysis", "📅 Action Plan", "📋 Tracker"]
 
 export default function JadaraApp() {
-  const { view, result, nodes, progress, xpTotal, analyze, completeTaskAction, reset, triggerEmail } = useAgent()
+  const { view, result, nodes, progress, xpTotal, tracker, analyze, completeTaskAction, reset, triggerEmail, refreshTracker } = useAgent()
 
   const [tier, setTier] = useState<"free" | "premium">("premium")
   const [cvText, setCvText] = useState("")
@@ -129,15 +129,19 @@ export default function JadaraApp() {
       } else {
         showToast(`⚠️ n8n error: ${res.error || 'Unknown error'} — is n8n running?`)
       }
+      // Always refresh tracker (entry is logged regardless of n8n success)
+      await refreshTracker()
+      setActiveTab(tabs.indexOf("📋 Tracker") !== -1 ? tabs.indexOf("📋 Tracker") : 5)
     } catch {
       showToast("Failed to send email — is n8n running?")
+      await refreshTracker()
     } finally {
       setSendingEmail(false)
     }
   }
 
   const tabs = [...TABS]
-  if (result?.application_email) tabs.push("✉️ Email")
+  if (result?.application_email && !tabs.includes("✉️ Email")) tabs.push("✉️ Email")
 
   return (
     <div
@@ -372,7 +376,7 @@ export default function JadaraApp() {
           <label
             style={{ fontSize: 11, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}
           >
-            Your Email (for applications)
+            Company Email (for applications)
           </label>
           <input
             type="email"
@@ -859,8 +863,161 @@ export default function JadaraApp() {
                 />
               )}
 
+              {/* Tracker Tab */}
+              {activeTab === 4 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <h3
+                      style={{
+                        margin: 0,
+                        fontFamily: "var(--font-syne, 'Syne', sans-serif)",
+                        fontWeight: 800,
+                        fontSize: 18,
+                        color: COLORS.teal,
+                      }}
+                    >
+                      Application Tracker
+                    </h3>
+                    <button
+                      onClick={refreshTracker}
+                      style={{
+                        padding: "6px 14px",
+                        background: "none",
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: 6,
+                        color: COLORS.textMuted,
+                        cursor: "pointer",
+                        fontSize: 12,
+                      }}
+                    >
+                      ↻ Refresh
+                    </button>
+                  </div>
+
+                  {tracker.length === 0 ? (
+                    <div
+                      style={{
+                        backgroundColor: COLORS.surface,
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: 12,
+                        padding: "40px 24px",
+                        textAlign: "center",
+                      }}
+                    >
+                      <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.4 }}>📋</div>
+                      <div style={{ color: COLORS.textMuted, fontSize: 14, fontWeight: 300 }}>
+                        No applications tracked yet.
+                      </div>
+                      <div style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 6, fontWeight: 300 }}>
+                        Send an application email and it will appear here automatically.
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {tracker.map((entry) => {
+                        const statusColor =
+                          entry.status === "Applied" ? COLORS.teal
+                            : entry.status.includes("failed") ? COLORS.warning
+                              : entry.status === "Interview" ? COLORS.gold
+                                : entry.status === "Rejected" ? COLORS.danger
+                                  : entry.status === "Offered" ? COLORS.success
+                                    : COLORS.textMuted
+
+                        return (
+                          <div
+                            key={entry.id}
+                            style={{
+                              backgroundColor: COLORS.surface,
+                              border: `1px solid ${COLORS.border}`,
+                              borderLeft: `3px solid ${statusColor}`,
+                              borderRadius: 12,
+                              padding: "16px 18px",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 16,
+                            }}
+                          >
+                            {/* Job info */}
+                            <div style={{ flex: 1 }}>
+                              <div
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: 400,
+                                  color: COLORS.textPrimary,
+                                  marginBottom: 3,
+                                }}
+                              >
+                                {entry.job_title}
+                              </div>
+                              <div style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: 300 }}>
+                                {entry.company}
+                              </div>
+                              {entry.notes && (
+                                <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 4, fontStyle: "italic" }}>
+                                  {entry.notes}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Right: status + date */}
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "flex-end",
+                                gap: 5,
+                                flexShrink: 0,
+                              }}
+                            >
+                              <select
+                                value={entry.status}
+                                onChange={async (e) => {
+                                  await updateTrackerStatus(entry.id, { status: e.target.value })
+                                  refreshTracker()
+                                }}
+                                style={{
+                                  fontSize: 11,
+                                  color: statusColor,
+                                  backgroundColor: "rgba(255,255,255,0.04)",
+                                  border: `1px solid ${COLORS.border}`,
+                                  borderRadius: 5,
+                                  padding: "3px 8px",
+                                  cursor: "pointer",
+                                  appearance: "none",
+                                  textAlign: "right",
+                                  fontWeight: 400,
+                                }}
+                              >
+                                {["Applied", "Applied (email failed)", "Interview", "Rejected", "Offered", "Accepted"].map((s) => (
+                                  <option key={s} value={s} style={{ backgroundColor: COLORS.surface, color: COLORS.textPrimary }}>
+                                    {s}
+                                  </option>
+                                ))}
+                              </select>
+                              <span
+                                style={{
+                                  fontSize: 10,
+                                  color: COLORS.textMuted,
+                                  backgroundColor: "rgba(255,255,255,0.04)",
+                                  border: `1px solid ${COLORS.border}`,
+                                  borderRadius: 5,
+                                  padding: "2px 7px",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {new Date(entry.date_applied).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Email Tab */}
-              {activeTab === 4 && result.application_email && (
+              {activeTab === (tabs.indexOf("✉️ Email")) && result.application_email && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                   <h3
                     style={{
